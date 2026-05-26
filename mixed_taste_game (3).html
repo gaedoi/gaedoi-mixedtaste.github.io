@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mixed Taste 🧃</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'neon-pink': '#ff2a6d',
+                        'neon-cyan': '#05d9e8',
+                        'neon-yellow': '#ffc300',
+                        'dark-bg': '#0d0e15',
+                        'dark-surface': '#1a1c29',
+                    },
+                    fontFamily: {
+                        'sans': ['"Space Grotesk"', 'system-ui', 'sans-serif'],
+                    },
+                    animation: {
+                        'blob': 'blob 7s infinite',
+                        'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'bounce-slow': 'bounce 2s infinite',
+                    },
+                    keyframes: {
+                        blob: {
+                            '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                            '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                            '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                            '100%': { transform: 'translate(0px, 0px) scale(1)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        body { background-color: #0d0e15; color: white; overflow-x: hidden; }
+        .glass-panel {
+            background: rgba(26, 28, 41, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        audio::-webkit-media-controls-panel { background-color: #1a1c29; }
+        audio::-webkit-media-controls-play-button, audio::-webkit-media-controls-mute-button { background-color: #05d9e8; border-radius: 50%; }
+        audio::-webkit-media-controls-current-time-display, audio::-webkit-media-controls-time-remaining-display { color: white; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // --- Firebase Initialization & Rules Setup ---
+        const appId = 'mixed-taste-app';
+        let db, auth;
+
+        // PASTE YOUR FIREBASE CONFIG HERE:
+        const firebaseConfig = {
+            apiKey: "AIzaSyBks1pTTzyDNMwqKPxb0c3oB0d-q9GteHU",
+            authDomain: "mixed-taste.firebaseapp.com",
+            projectId: "mixed-taste",
+            storageBucket: "mixed-taste.firebasestorage.app",
+            messagingSenderId: "990603145775",
+            appId: "1:990603145775:web:a36b2bb1c979007f540cda",
+            measurementId: "G-38VXJQ6VWS"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.firestore();
+        auth = firebase.auth();
+
+        const getRoomRef = (roomId) => db.collection('rooms').doc(roomId);
+
+        // --- Utility Functions ---
+        const generateRoomCode = () => Math.random().toString(36).substring(2, 6).toUpperCase();
+        
+        // WhatsApp & Emoji Parser
+        const parseWhatsAppLog = (text) => {
+            const lines = text.split('\n');
+            const messages = [];
+            const regex = /^\[(\d{2}\/\d{2}\/\d{4}),\s(\d{2}:\d{2}:\d{2})\]\s([^:]+):\s(.*)$/;
+            
+            let currentMsg = null;
+
+            for (let line of lines) {
+                line = line.trim();
+                if (!line) continue;
+                if (line.includes('‎') || line.includes('omitted') || line.includes('This message was deleted')) continue; 
+
+                const match = line.match(regex);
+                if (match) {
+                    if (currentMsg && currentMsg.text.length > 3) messages.push(currentMsg);
+                    const sender = match[3].trim();
+                    if (sender.includes('added') || sender.includes('changed') || sender.length > 25) continue;
+
+                    currentMsg = { date: match[1], time: match[2], sender: sender, text: match[4].trim() };
+                } else if (currentMsg) {
+                    currentMsg.text += " " + line;
+                }
+            }
+            if (currentMsg && currentMsg.text.length > 3) messages.push(currentMsg);
+            return messages;
+        };
+
+        const generateWhatsappQuestions = (messages, numQuestions = 6) => {
+            const questions = [];
+            const senders = [...new Set(messages.map(m => m.sender))];
+            if (senders.length < 2 || messages.length < 20) return null;
+
+            for (let i = 0; i < numQuestions; i++) {
+                const type = Math.random() > 0.5 ? 'who_said' : 'fill_blank';
+                if (type === 'who_said') {
+                    const validMsgs = messages.filter(m => m.text.length > 15);
+                    const msg = validMsgs[Math.floor(Math.random() * validMsgs.length)];
+                    let options = new Set([msg.sender]);
+                    while(options.size < Math.min(4, senders.length)) {
+                        options.add(senders[Math.floor(Math.random() * senders.length)]);
+                    }
+                    questions.push({ id: `q_${i}`, type: 'who_said', text: `"${msg.text}"`, options: Array.from(options).sort(() => Math.random() - 0.5), correctAnswer: msg.sender });
+                } else {
+                    const idx = Math.floor(Math.random() * (messages.length - 2));
+                    const contextMsg = messages[idx];
+                    const targetMsg = messages[idx + 1];
+
+                    let options = new Set([targetMsg.text]);
+                    const senderMsgs = messages.filter(m => m.sender === targetMsg.sender && m.text !== targetMsg.text && m.text.length > 3);
+                    while(options.size < 4 && senderMsgs.length > options.size) {
+                       options.add(senderMsgs[Math.floor(Math.random() * senderMsgs.length)].text);
+                    }
+                    questions.push({ id: `q_${i}`, type: 'fill_blank', context: `${contextMsg.sender}: "${contextMsg.text}"\n\n${targetMsg.sender}: ...`, options: Array.from(options).sort(() => Math.random() - 0.5), correctAnswer: targetMsg.text });
+                }
+            }
+            return questions;
+        };
+
+        const generateEmojiQuestions = (messages, numQuestions = 5) => {
+            const emojiStats = {}; 
+            const emojiRegex = /\p{Emoji_Presentation}|\p{Extended_Pictographic}/gu;
+            
+            messages.forEach(m => {
+                const emojis = m.text.match(emojiRegex);
+                if (emojis) {
+                    emojis.forEach(e => {
+                        if (!emojiStats[e]) emojiStats[e] = {};
+                        emojiStats[e][m.sender] = (emojiStats[e][m.sender] || 0) + 1;
+                    });
+                }
+            });
+
+            const validEmojis = Object.entries(emojiStats)
+                .map(([emoji, counts]) => {
+                    const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]);
+                    return { emoji, topSender: sorted[0][0], maxCount: sorted[0][1] };
+                })
+                .filter(e => e.maxCount >= 2) 
+                .sort(() => Math.random() - 0.5); 
+
+            const senders = [...new Set(messages.map(m => m.sender))];
+            const questions = [];
+
+            for (let i = 0; i < Math.min(numQuestions, validEmojis.length); i++) {
+                const target = validEmojis[i];
+                let options = new Set([target.topSender]);
+                while(options.size < Math.min(4, senders.length)) {
+                    options.add(senders[Math.floor(Math.random() * senders.length)]);
+                }
+                questions.push({ id: `eq_${i}`, emoji: target.emoji, options: Array.from(options).sort(() => Math.random() - 0.5), correctAnswer: target.topSender });
+            }
+            return questions.length > 0 ? questions : null;
+        };
+
+        // Shuffle logic ensuring no one gets their own item
+        const generateDerangedAssignments = (uids) => {
+            if (uids.length < 2) return null;
+            let shuffled, valid = false, attempts = 0;
+            while (!valid && attempts < 100) {
+                shuffled = [...uids].sort(() => Math.random() - 0.5);
+                valid = true;
+                for (let i=0; i<uids.length; i++) {
+                    if (uids[i] === shuffled[i]) valid = false;
+                }
+                attempts++;
+            }
+            if (!valid) return null; // Fallback if impossible (shouldn't happen with >2 elements)
+            const assignments = {};
+            uids.forEach((uid, i) => assignments[uid] = shuffled[i]);
+            return assignments;
+        };
+
+
+        // --- Icons ---
+        const Icon = ({ name, size = 24, className = '' }) => {
+            const getIcon = () => {
+                switch(name) {
+                    case 'Music': return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>;
+                    case 'MessageCircle': return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>;
+                    case 'Play': return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="5 3 19 12 5 21 5 3"/></svg>;
+                    case 'Crown': return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"/></svg>;
+                    case 'ListMusic': return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 15V6"/><path d="M18.5 18a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"/><path d="M12 12H3"/><path d="M16 6H3"/><path d="M12 18H3"/></svg>;
+                    case 'Smile': return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>;
+                    case 'UploadCloud': return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></svg>;
+                    case 'Plus': return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
+                    case 'Trash2': return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>;
+                    default: return null;
+                }
+            };
+            return getIcon();
+        };
+
+        // --- Core Application ---
+        const App = () => {
+            const [user, setUser] = React.useState(null);
+            const [room, setRoom] = React.useState(null);
+            const [playerName, setPlayerName] = React.useState('');
+            const [error, setError] = React.useState('');
+
+            React.useEffect(() => {
+                if (!auth) {
+                    setError("Firebase not initialized. Check console.");
+                    return;
+                }
+                const initAuth = async () => {
+                    try {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await auth.signInWithCustomToken(__initial_auth_token);
+                        } else {
+                            await auth.signInAnonymously();
+                        }
+                    } catch (err) {
+                        setError("Failed to connect to game servers.");
+                    }
+                };
+                initAuth();
+
+                const unsubscribe = auth.onAuthStateChanged(u => {
+                    setUser(u);
+                    const savedName = localStorage.getItem('mixedTasteName');
+                    if (savedName) setPlayerName(savedName);
+                });
+                return () => unsubscribe();
+            }, []);
+
+            React.useEffect(() => {
+                if (!user || !room?.id) return;
+                const unsub = getRoomRef(room.id).onSnapshot(
+                    (doc) => {
+                        if (doc.exists) {
+                            setRoom({ id: doc.id, ...doc.data() });
+                        } else {
+                            setRoom(null);
+                            setError("Room closed by host.");
+                        }
+                    },
+                    (err) => console.error("Room sync error:", err)
+                );
+                return () => unsub();
+            }, [user, room?.id]);
+
+            const handleCreateRoom = async (name) => {
+                if (!user) return;
+                const roomId = generateRoomCode();
+                try {
+                    await getRoomRef(roomId).set({
+                        host: user.uid,
+                        state: 'LOBBY',
+                        currentMode: 'song_king', 
+                        players: { [user.uid]: { name, score: 0, ready: false } },
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    localStorage.setItem('mixedTasteName', name);
+                    setRoom({ id: roomId });
+                } catch (err) {
+                    setError("Failed to create room.");
+                }
+            };
+
+            const handleJoinRoom = async (roomId, name) => {
+                if (!user) return;
+                try {
+                    const roomDoc = await getRoomRef(roomId).get();
+                    if (!roomDoc.exists) {
+                        setError("Room not found.");
+                        return;
+                    }
+                    const data = roomDoc.data();
+                    if (data.state !== 'LOBBY') {
+                        setError("Game already in progress.");
+                        return;
+                    }
+                    await getRoomRef(roomId).update({
+                        [`players.${user.uid}`]: { name, score: 0, ready: false }
+                    });
+                    localStorage.setItem('mixedTasteName', name);
+                    setRoom({ id: roomId });
+                } catch (err) {
+                    setError("Failed to join room.");
+                }
+            };
+
+            const leaveRoom = async () => {
+                if (room && user) {
+                    if (room.host === user.uid) {
+                        await getRoomRef(room.id).delete();
+                    } else {
+                        await getRoomRef(room.id).update({ [`players.${user.uid}`]: firebase.firestore.FieldValue.delete() });
+                    }
+                }
+                setRoom(null);
+            };
+
+            if (!user) return <div className="min-h-screen flex items-center justify-center font-sans text-neon-cyan animate-pulse">Connecting to servers...</div>;
+
+            return (
+                <div className="min-h-screen relative overflow-hidden font-sans">
+                    {/* Atmospheric Background */}
+                    <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-neon-pink rounded-full mix-blend-multiply filter blur-[128px] opacity-20 animate-blob"></div>
+                    <div className="absolute top-[20%] right-[-10%] w-96 h-96 bg-neon-cyan rounded-full mix-blend-multiply filter blur-[128px] opacity-20 animate-blob animation-delay-2000"></div>
+                    <div className="absolute bottom-[-20%] left-[20%] w-96 h-96 bg-neon-yellow rounded-full mix-blend-multiply filter blur-[128px] opacity-20 animate-blob animation-delay-4000"></div>
+
+                    {/* About Section - Top Right */}
+                    <div className="absolute top-4 right-4 md:top-6 md:right-6 z-50 glass-panel px-4 py-2 rounded-full flex items-center gap-3 shadow-lg border border-gray-700/50 transition-transform hover:scale-105 cursor-default">
+                        <span className="text-xs md:text-sm font-bold text-gray-300 tracking-wide">Idea by Charlie Blake</span>
+                        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSW_C7jBu-wEIBaM8ja0qSmsuUnMpIk5xPstg&s" alt="Charlie Blake" className="w-8 h-8 rounded-full border-2 border-neon-cyan object-cover shadow-[0_0_10px_rgba(5,217,232,0.5)]" />
+                    </div>
+
+                    <div className="relative z-10 p-4 md:p-8 max-w-5xl mx-auto h-screen flex flex-col">
+                        {error && (
+                            <div className="bg-red-500/20 border border-red-500 text-red-100 p-3 rounded-lg mb-4 flex justify-between items-center z-50 shadow-lg">
+                                {error}
+                                <button onClick={() => setError('')} className="font-bold hover:text-white transition">✕</button>
+                            </div>
+                        )}
+
+                        {!room ? (
+                            <HomeScreen onCreate={handleCreateRoom} onJoin={handleJoinRoom} defaultName={playerName} />
+                        ) : room.state === 'LOBBY' ? (
+                            <LobbyScreen room={room} user={user} onLeave={leaveRoom} />
+                        ) : (
+                            <GameManager room={room} user={user} onLeave={leaveRoom} />
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Home Screen ---
+        const HomeScreen = ({ onCreate, onJoin, defaultName }) => {
+            const [name, setName] = React.useState(defaultName);
+            const [roomCode, setRoomCode] = React.useState('');
+
+            return (
+                <div className="flex-1 flex flex-col items-center justify-center text-center">
+                    <div className="mb-12 relative">
+                        <h1 className="text-6xl md:text-8xl font-bold mb-2 tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-neon-pink via-neon-yellow to-neon-cyan pb-2">Mixed Taste</h1>
+                        <p className="text-gray-400 text-lg md:text-xl font-medium tracking-wide">The chaotic friend group party game.</p>
+                    </div>
+
+                    <div className="glass-panel p-8 rounded-3xl w-full max-w-md shadow-2xl border border-gray-700/50">
+                        <div className="mb-6 text-left">
+                            <label className="block text-sm font-semibold text-gray-300 mb-2 uppercase tracking-widest">Player Name</label>
+                            <input 
+                                type="text" 
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                className="w-full bg-dark-bg/50 border border-gray-600 rounded-xl p-4 text-white focus:border-neon-cyan focus:outline-none focus:ring-2 focus:ring-neon-cyan/20 transition-all text-lg font-medium"
+                                placeholder="e.g. DJ Chaos"
+                                maxLength="15"
+                            />
+                        </div>
+
+                        <button 
+                            onClick={() => name && onCreate(name)}
+                            disabled={!name}
+                            className="w-full bg-gradient-to-r from-neon-pink to-pink-600 disabled:opacity-50 text-white font-bold py-4 px-4 rounded-xl transition-transform active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-neon-pink/20"
+                        >
+                            <Icon name="Crown" size={20} /> Create New Room
+                        </button>
+
+                        <div className="my-8 relative">
+                            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-700"></div></div>
+                            <div className="relative flex justify-center"><span className="bg-[#1a1c29] px-4 text-sm text-gray-400 font-bold tracking-widest">OR</span></div>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <input 
+                                type="text" 
+                                value={roomCode}
+                                onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                                className="flex-1 bg-dark-bg/50 border border-gray-600 rounded-xl p-4 text-white uppercase text-center tracking-[0.3em] font-mono focus:border-neon-cyan focus:outline-none text-xl"
+                                placeholder="CODE"
+                                maxLength="4"
+                            />
+                            <button 
+                                onClick={() => name && roomCode.length === 4 && onJoin(roomCode, name)}
+                                disabled={!name || roomCode.length !== 4}
+                                className="bg-neon-cyan hover:bg-cyan-500 disabled:opacity-50 text-black font-bold py-4 px-8 rounded-xl transition-transform active:scale-95 shadow-lg shadow-neon-cyan/20"
+                            >
+                                Join
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Lobby Screen ---
+        const LobbyScreen = ({ room, user, onLeave }) => {
+            const isHost = room.host === user.uid;
+            const players = Object.entries(room.players || {});
+            
+            const [parsingLog, setParsingLog] = React.useState('');
+
+            const modes = [
+                { id: 'song_king', name: 'Song King', icon: 'Music', desc: 'Secretly submit songs. Guess who picked what.', active: true },
+                { id: 'playlist_ring', name: 'Playlist Ring', icon: 'ListMusic', desc: 'Create a prompt. Build a playlist. Cause chaos.', active: true },
+                { id: 'whatsapp', name: 'Whatsapp Expozed', icon: 'MessageCircle', desc: 'Upload a chat export. Get quizzed on your chaos.', active: true },
+                { id: 'emoji_go', name: 'Emoji Go With Who?', icon: 'Smile', desc: 'Analyzes chat logs to find who uses 💀 the most.', active: true }
+            ];
+
+            const setMode = async (modeId) => {
+                if (!isHost) return;
+                await getRoomRef(room.id).update({ currentMode: modeId });
+            };
+
+            const toggleReady = async () => {
+                const currentReady = room.players[user.uid]?.ready;
+                await getRoomRef(room.id).update({ [`players.${user.uid}.ready`]: !currentReady });
+            };
+
+            const handleFileUpload = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                setParsingLog('Analyzing chaos...');
+                
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const text = e.target.result;
+                    const messages = parseWhatsAppLog(text);
+                    
+                    if (messages.length < 20) {
+                        setParsingLog('❌ Error: Need at least 20 messages in log.');
+                        return;
+                    }
+                    
+                    const wpQs = generateWhatsappQuestions(messages, 6);
+                    const emQs = generateEmojiQuestions(messages, 6);
+
+                    if (!wpQs && !emQs) {
+                        setParsingLog('❌ Error: Not enough varied senders/data.');
+                        return;
+                    }
+
+                    await getRoomRef(room.id).update({
+                        'gameData.whatsappQuestions': wpQs || [],
+                        'gameData.emojiQuestions': emQs || []
+                    });
+                    setParsingLog(`✅ Success! Loaded data from ${messages.length} messages.`);
+                };
+                reader.readAsText(file);
+            };
+
+            const startGame = async () => {
+                if (!isHost) return;
+                
+                let initialData = {};
+                if (room.currentMode === 'song_king') {
+                    initialData = { phase: 'SUBMIT', songs: {}, guesses: {}, round: 1 };
+                } else if (room.currentMode === 'playlist_ring') {
+                    initialData = { phase: 'PROMPT', prompts: {}, assignments: {}, playlists: {}, guesses: {} };
+                } else if (room.currentMode === 'whatsapp') {
+                    if (!room.gameData?.whatsappQuestions?.length) {
+                        alert("Please upload and parse a WhatsApp log first!");
+                        return;
+                    }
+                    initialData = { phase: 'QUESTION', currentQIndex: 0, answers: {}, questions: room.gameData.whatsappQuestions };
+                } else if (room.currentMode === 'emoji_go') {
+                    if (!room.gameData?.emojiQuestions?.length) {
+                        alert("Please upload a WhatsApp log with sufficient Emoji usage first!");
+                        return;
+                    }
+                    initialData = { phase: 'QUESTION', currentQIndex: 0, answers: {}, questions: room.gameData.emojiQuestions };
+                }
+
+                // Reset scores
+                let updates = { state: 'PLAYING', gameData: initialData };
+                Object.keys(room.players).forEach(pId => {
+                    updates[`players.${pId}.score`] = 0;
+                    updates[`players.${pId}.ready`] = false;
+                });
+
+                await getRoomRef(room.id).update(updates);
+            };
+
+            return (
+                <div className="flex-1 flex flex-col md:flex-row gap-6 h-full">
+                    <div className="w-full md:w-2/3 flex flex-col gap-6 overflow-y-auto hide-scrollbar pb-6">
+                        <div className="glass-panel p-6 rounded-3xl flex justify-between items-center shadow-lg">
+                            <div>
+                                <h2 className="text-sm text-neon-pink font-bold tracking-[0.2em] uppercase mb-1">Room Code</h2>
+                                <p className="text-5xl font-mono tracking-widest font-black text-white drop-shadow-md">{room.id}</p>
+                            </div>
+                            <button onClick={onLeave} className="text-gray-400 hover:text-white px-4 py-2 rounded-lg border border-gray-600 hover:border-gray-400 hover:bg-gray-800 transition">Leave</button>
+                        </div>
+
+                        <div className="glass-panel p-6 rounded-3xl flex-1 shadow-lg">
+                            <h2 className="text-2xl font-bold mb-6">Select Mode</h2>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {modes.map(m => (
+                                    <div 
+                                        key={m.id}
+                                        onClick={() => m.active && setMode(m.id)}
+                                        className={`p-5 rounded-2xl border-2 transition-all ${!m.active ? 'opacity-50 cursor-not-allowed border-gray-700 bg-gray-800/50' : room.currentMode === m.id ? 'border-neon-cyan bg-cyan-900/20 shadow-[0_0_15px_rgba(5,217,232,0.2)]' : 'border-gray-700 hover:border-gray-500 cursor-pointer'} ${!isHost && m.active ? 'pointer-events-none' : ''}`}
+                                    >
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <Icon name={m.icon} className={room.currentMode === m.id ? 'text-neon-cyan' : 'text-gray-400'} />
+                                            <h3 className="font-bold text-lg">{m.name}</h3>
+                                        </div>
+                                        <p className="text-sm text-gray-400 leading-relaxed">{m.desc}</p>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {(room.currentMode === 'whatsapp' || room.currentMode === 'emoji_go') && isHost && (
+                                <div className="mt-8 p-5 border-2 border-neon-yellow/50 bg-yellow-900/10 rounded-2xl">
+                                    <h3 className="font-bold text-neon-yellow mb-2 flex items-center gap-2"><Icon name="UploadCloud" size={20}/> Host: Upload WhatsApp Log</h3>
+                                    <p className="text-sm text-gray-300 mb-4 leading-relaxed">Export a WhatsApp chat (Without Media) as a <b>.txt</b> file. Processing is done 100% locally in your browser. Only the generated quiz questions are synced.</p>
+                                    <label className="block w-full text-center py-3 px-4 rounded-xl border-2 border-dashed border-gray-600 hover:border-neon-yellow cursor-pointer transition-colors">
+                                        <span className="text-neon-yellow font-bold">Choose .txt File</span>
+                                        <input type="file" accept=".txt" onChange={handleFileUpload} className="hidden"/>
+                                    </label>
+                                    {parsingLog && <p className="mt-4 text-sm font-mono bg-dark-bg p-2 rounded text-center">{parsingLog}</p>}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="w-full md:w-1/3 flex flex-col gap-4">
+                        <div className="glass-panel p-6 rounded-3xl flex-1 flex flex-col shadow-lg">
+                            <h2 className="text-xl font-bold mb-6 flex justify-between items-center">
+                                Players <span className="bg-gray-800 text-neon-cyan font-mono px-3 py-1 rounded-full">{players.length}</span>
+                            </h2>
+                            <div className="flex-1 overflow-y-auto hide-scrollbar space-y-3 mb-6">
+                                {players.map(([id, p]) => (
+                                    <div key={id} className="flex items-center justify-between bg-dark-surface p-4 rounded-xl border border-gray-700/50 shadow-sm">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-neon-pink to-neon-yellow flex items-center justify-center font-bold text-black text-lg shadow-inner">
+                                                {p.name.charAt(0).toUpperCase()}
+                                            </div>
+                                            <span className="font-bold text-lg">{p.name} {id === room.host && '👑'}</span>
+                                        </div>
+                                        {p.ready ? <span className="text-neon-cyan text-xs font-black tracking-wider bg-cyan-900/30 px-2 py-1 rounded">READY</span> : <span className="text-gray-500 text-xs font-bold tracking-wider">WAITING</span>}
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            {!isHost ? (
+                                <button 
+                                    onClick={toggleReady}
+                                    className={`w-full py-4 rounded-2xl font-bold text-xl transition-all active:scale-95 shadow-lg ${room.players[user.uid]?.ready ? 'bg-gray-700 text-white shadow-none' : 'bg-neon-cyan text-black hover:bg-cyan-400 shadow-neon-cyan/20'}`}
+                                >
+                                    {room.players[user.uid]?.ready ? 'Unready' : 'Ready Up!'}
+                                </button>
+                            ) : (
+                                <button 
+                                    onClick={startGame}
+                                    disabled={players.length < 2}
+                                    className="w-full py-4 rounded-2xl font-bold text-xl bg-neon-pink text-white hover:bg-pink-500 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 shadow-lg shadow-neon-pink/20"
+                                >
+                                    Start Game
+                                </button>
+                            )}
+                            {isHost && players.length < 2 && <p className="text-center text-xs text-red-400 mt-3 font-medium">Requires at least 2 players to start.</p>}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Game Manager Router ---
+        const GameManager = ({ room, user, onLeave }) => {
+            if (room.currentMode === 'song_king') return <SongKingGame room={room} user={user} onLeave={onLeave} />;
+            if (room.currentMode === 'whatsapp') return <QuizGame room={room} user={user} onLeave={onLeave} isEmoji={false} />;
+            if (room.currentMode === 'emoji_go') return <QuizGame room={room} user={user} onLeave={onLeave} isEmoji={true} />;
+            if (room.currentMode === 'playlist_ring') return <PlaylistRingGame room={room} user={user} onLeave={onLeave} />;
+            return <div>Unknown mode</div>;
+        };
+
+        // --- Common Component: Results Screen ---
+        const ResultsScreen = ({ room, isHost, onBack }) => {
+            const sortedPlayers = Object.entries(room.players).sort((a,b) => b[1].score - a[1].score);
+            return (
+                <div className="flex-1 flex flex-col items-center justify-center pb-12">
+                    <div className="glass-panel p-8 rounded-3xl w-full max-w-md text-center shadow-2xl border border-neon-yellow/30">
+                        <h2 className="text-5xl font-black mb-8 text-transparent bg-clip-text bg-gradient-to-r from-neon-pink to-neon-yellow pb-2">Final Scores</h2>
+                        <div className="space-y-4 mb-8">
+                            {sortedPlayers.map(([pId, p], idx) => (
+                                <div key={pId} className={`flex items-center justify-between p-5 rounded-2xl border ${idx === 0 ? 'bg-yellow-900/20 border-neon-yellow shadow-[0_0_15px_rgba(255,195,0,0.2)]' : 'bg-dark-surface border-gray-700'}`}>
+                                    <div className="flex items-center gap-4">
+                                        <span className={`text-3xl font-black ${idx === 0 ? 'text-neon-yellow' : 'text-gray-500'}`}>#{idx + 1}</span>
+                                        <span className="font-bold text-xl">{p.name}</span>
+                                    </div>
+                                    <span className={`font-mono font-bold text-2xl ${idx===0 ? 'text-neon-yellow' : 'text-neon-cyan'}`}>{p.score}</span>
+                                </div>
+                            ))}
+                        </div>
+                        {isHost && (
+                            <button onClick={onBack} className="w-full bg-dark-surface hover:bg-gray-800 border-2 border-gray-600 hover:border-gray-400 text-white font-bold py-4 rounded-xl transition-colors text-lg">Back to Lobby</button>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Mode 1: Song King ---
+        const SongKingGame = ({ room, user, onLeave }) => {
+            const isHost = room.host === user.uid;
+            const phase = room.gameData?.phase || 'SUBMIT';
+            const [search, setSearch] = React.useState('');
+            const [results, setResults] = React.useState([]);
+            const [loading, setLoading] = React.useState(false);
+            const [selectedSong, setSelectedSong] = React.useState(null);
+            const [myGuesses, setMyGuesses] = React.useState({});
+
+            const searchItunes = async (query) => {
+                if (!query) return;
+                setLoading(true);
+                try {
+                    const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=5`);
+                    const data = await res.json();
+                    setResults(data.results);
+                } catch (e) { console.error("Search failed", e); }
+                setLoading(false);
+            };
+
+            const submitSong = async () => {
+                if (!selectedSong) return;
+                await getRoomRef(room.id).update({
+                    [`gameData.songs.${user.uid}`]: {
+                        id: selectedSong.trackId, title: selectedSong.trackName, artist: selectedSong.artistName, cover: selectedSong.artworkUrl100, preview: selectedSong.previewUrl
+                    }
+                });
+            };
+
+            const allSubmitted = Object.keys(room.gameData?.songs || {}).length === Object.keys(room.players).length;
+            const allGuessed = Object.keys(room.gameData?.guesses || {}).length === Object.keys(room.players).length;
+
+            const revealScores = async () => {
+                if (!isHost) return;
+                let updates = { 'gameData.phase': 'RESULTS' };
+                Object.keys(room.players).forEach(pId => {
+                    let score = room.players[pId].score || 0;
+                    const pGuesses = room.gameData.guesses[pId] || {};
+                    Object.entries(pGuesses).forEach(([songOwnerId, guessedId]) => {
+                        if (songOwnerId === guessedId) score += 100;
+                    });
+                    updates[`players.${pId}.score`] = score;
+                });
+                await getRoomRef(room.id).update(updates);
+            };
+
+            if (phase === 'SUBMIT') {
+                const hasSubmitted = !!room.gameData?.songs?.[user.uid];
+                return (
+                    <div className="flex-1 flex flex-col items-center">
+                        <div className="glass-panel p-8 rounded-3xl w-full max-w-2xl text-center shadow-xl">
+                            <h2 className="text-4xl font-bold mb-3 text-neon-pink tracking-tight">Submit a Song</h2>
+                            <p className="text-gray-400 mb-8 text-lg">Pick a song you think represents you, or one to fool everyone else.</p>
+                            
+                            {!hasSubmitted ? (
+                                <>
+                                    <div className="flex gap-2 mb-6 bg-dark-bg p-2 rounded-2xl border border-gray-700">
+                                        <input 
+                                            type="text" value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && searchItunes(search)}
+                                            placeholder="Search artist or song..."
+                                            className="flex-1 bg-transparent border-none p-3 text-white focus:outline-none text-lg"
+                                        />
+                                        <button onClick={() => searchItunes(search)} className="bg-neon-cyan text-black px-6 rounded-xl font-bold hover:bg-cyan-400 transition-colors">Search</button>
+                                    </div>
+                                    
+                                    {loading && <div className="text-neon-cyan animate-pulse py-4 font-bold">Searching the vault...</div>}
+                                    
+                                    <div className="space-y-3 mb-8 text-left max-h-72 overflow-y-auto hide-scrollbar">
+                                        {results.map(track => (
+                                            <div key={track.trackId} onClick={() => setSelectedSong(track)} className={`flex items-center gap-4 p-4 rounded-2xl cursor-pointer border-2 transition-all ${selectedSong?.trackId === track.trackId ? 'border-neon-cyan bg-cyan-900/30 scale-[1.02] shadow-lg shadow-cyan-900/20' : 'border-transparent bg-dark-surface hover:bg-gray-800'}`}>
+                                                <img src={track.artworkUrl100} className="w-14 h-14 rounded-xl shadow-md" />
+                                                <div className="flex-1 overflow-hidden">
+                                                    <p className="font-bold truncate text-lg">{track.trackName}</p>
+                                                    <p className="text-sm text-gray-400 truncate">{track.artistName}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <button onClick={submitSong} disabled={!selectedSong} className="w-full bg-neon-pink text-white font-bold py-4 rounded-xl disabled:opacity-50 text-xl transition-transform active:scale-95 shadow-lg shadow-pink-900/50">Lock In Selection</button>
+                                </>
+                            ) : (
+                                <div className="py-16">
+                                    <h3 className="text-3xl font-bold mb-4 text-white">Song Locked! 🔒</h3>
+                                    <p className="text-gray-400 text-lg mb-8">Waiting for the slowpokes...</p>
+                                    <div className="flex justify-center gap-3">
+                                        {Object.keys(room.players).map(pid => (
+                                            <div key={pid} className={`w-4 h-4 rounded-full transition-all duration-500 ${room.gameData?.songs?.[pid] ? 'bg-neon-cyan shadow-[0_0_10px_#05d9e8]' : 'bg-gray-700'}`}></div>
+                                        ))}
+                                    </div>
+                                    {isHost && allSubmitted && (
+                                        <button onClick={() => getRoomRef(room.id).update({ 'gameData.phase': 'GUESSING' })} className="mt-12 w-full bg-neon-yellow text-black py-4 rounded-xl font-bold text-xl animate-pulse shadow-lg shadow-yellow-900/50 hover:bg-yellow-400">Start Guessing Phase</button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            }
+
+            if (phase === 'GUESSING') {
+                const songs = Object.entries(room.gameData.songs || {});
+                const hasGuessed = !!room.gameData?.guesses?.[user.uid];
+
+                return (
+                    <div className="flex-1 flex flex-col h-full">
+                        <div className="text-center mb-6">
+                            <h2 className="text-4xl font-black text-neon-yellow mb-2 tracking-tight">Who picked what?</h2>
+                            <p className="text-gray-400 text-lg">Match the players to the tunes.</p>
+                        </div>
+
+                        {!hasGuessed ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 flex-1 overflow-y-auto hide-scrollbar pb-32 px-2">
+                                {songs.map(([ownerId, song]) => (
+                                    <div key={ownerId} className="glass-panel p-5 rounded-2xl flex items-center gap-5 border border-gray-700/50 hover:border-neon-cyan/50 transition-colors">
+                                        <div className="relative group shrink-0">
+                                            <img src={song.cover} className="w-24 h-24 rounded-xl shadow-lg" />
+                                            {song.preview && (
+                                                <button 
+                                                    className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-xl"
+                                                    onClick={() => { const a = new Audio(song.preview); a.volume = 0.5; a.play(); }}
+                                                >
+                                                    <Icon name="Play" className="text-white" size={32} />
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-bold truncate text-xl mb-1">{song.title}</p>
+                                            <p className="text-sm text-gray-400 truncate mb-4">{song.artist}</p>
+                                            
+                                            <select 
+                                                className="w-full bg-dark-surface border-2 border-gray-600 rounded-lg p-3 text-white focus:border-neon-cyan focus:outline-none font-bold"
+                                                value={myGuesses[ownerId] || ''}
+                                                onChange={(e) => setMyGuesses(prev => ({...prev, [ownerId]: e.target.value}))}
+                                            >
+                                                <option value="" disabled>Select Player...</option>
+                                                {Object.entries(room.players).map(([pId, p]) => (
+                                                    <option key={pId} value={pId}>{p.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="flex-1 flex items-center justify-center pb-20">
+                                <div className="text-center glass-panel p-12 rounded-3xl">
+                                    <h3 className="text-3xl font-bold mb-4">Guesses Locked! 🕵️</h3>
+                                    <p className="text-gray-400 mb-8 text-lg">Did you figure them out?</p>
+                                    <div className="flex justify-center gap-3 mb-8">
+                                        {Object.keys(room.players).map(pid => (
+                                            <div key={pid} className={`w-4 h-4 rounded-full transition-all duration-500 ${room.gameData?.guesses?.[pid] ? 'bg-neon-pink shadow-[0_0_10px_#ff2a6d]' : 'bg-gray-700'}`}></div>
+                                        ))}
+                                    </div>
+                                    {isHost && allGuessed && (
+                                        <button onClick={revealScores} className="w-full bg-neon-cyan text-black px-8 py-4 rounded-xl font-bold text-xl animate-pulse hover:bg-cyan-400 shadow-lg shadow-cyan-900/50">Reveal Results</button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {!hasGuessed && (
+                            <div className="fixed bottom-6 left-0 w-full flex justify-center px-4 pointer-events-none">
+                                <button 
+                                    onClick={() => getRoomRef(room.id).update({[`gameData.guesses.${user.uid}`]: myGuesses})}
+                                    disabled={Object.keys(myGuesses).length !== songs.length}
+                                    className="w-full max-w-lg bg-neon-pink text-white font-bold py-4 rounded-2xl shadow-[0_10px_40px_rgba(255,42,109,0.3)] disabled:opacity-0 disabled:-translate-y-4 transition-all duration-300 pointer-events-auto text-xl active:scale-95 hover:bg-pink-500"
+                                >
+                                    Submit Final Guesses
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                );
+            }
+
+            if (phase === 'RESULTS') return <ResultsScreen room={room} isHost={isHost} onBack={() => getRoomRef(room.id).update({ state: 'LOBBY', gameData: {} })} />;
+            return null;
+        };
+
+        // --- Mode 2 & 4: Whatsapp / Emoji Quiz Game ---
+        const QuizGame = ({ room, user, onLeave, isEmoji }) => {
+            const isHost = room.host === user.uid;
+            const qIndex = room.gameData.currentQIndex || 0;
+            const questions = room.gameData.questions || [];
+            const currentQ = questions[qIndex];
+            
+            const hasAnswered = !!room.gameData?.answers?.[qIndex]?.[user.uid];
+            const allAnswered = Object.keys(room.gameData?.answers?.[qIndex] || {}).length === Object.keys(room.players).length;
+
+            const submitAnswer = async (answer) => {
+                await getRoomRef(room.id).update({ [`gameData.answers.${qIndex}.${user.uid}`]: answer });
+            };
+
+            const nextQuestion = async () => {
+                if (!isHost) return;
+                let updates = {};
+                const answers = room.gameData.answers[qIndex] || {};
+                Object.entries(answers).forEach(([pId, ans]) => {
+                    if (ans === currentQ.correctAnswer) {
+                        updates[`players.${pId}.score`] = (room.players[pId].score || 0) + 100;
+                    }
+                });
+
+                if (qIndex + 1 < questions.length) {
+                    updates['gameData.currentQIndex'] = qIndex + 1;
+                } else {
+                    updates['gameData.phase'] = 'RESULTS';
+                }
+                await getRoomRef(room.id).update(updates);
+            };
+
+            if (room.gameData.phase === 'RESULTS') return <ResultsScreen room={room} isHost={isHost} onBack={() => getRoomRef(room.id).update({ state: 'LOBBY', gameData: {} })} />;
+            if (!currentQ) return <div className="text-center mt-20 text-xl font-bold animate-pulse">Loading Question...</div>;
+
+            return (
+                <div className="flex-1 flex flex-col items-center pt-8 md:pt-16 pb-12 overflow-y-auto hide-scrollbar">
+                    <div className="w-full max-w-3xl">
+                        <div className="flex justify-between items-end mb-6 px-2">
+                            <div>
+                                <span className="text-neon-pink font-black text-xl uppercase tracking-widest block mb-1">Round {qIndex + 1}/{questions.length}</span>
+                                <span className="text-gray-400 font-medium">
+                                    {isEmoji ? 'Emoji Habits' : (currentQ.type === 'who_said' ? 'Who sent this message?' : 'Fill in the blank context')}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className={`glass-panel p-8 md:p-12 rounded-3xl mb-8 shadow-2xl border-l-8 ${isEmoji ? 'border-neon-yellow' : 'border-neon-cyan'} relative overflow-hidden`}>
+                            {/* Decorative Background Icon */}
+                            <div className="absolute -right-10 -bottom-10 opacity-5 pointer-events-none">
+                                <Icon name={isEmoji ? 'Smile' : 'MessageCircle'} size={200} />
+                            </div>
+                            
+                            <div className="relative z-10">
+                                {isEmoji ? (
+                                    <div className="text-center">
+                                        <p className="text-gray-400 uppercase tracking-widest font-bold mb-4">Who uses this emoji the most?</p>
+                                        <p className="text-8xl md:text-[120px] filter drop-shadow-lg animate-bounce-slow">{currentQ.emoji}</p>
+                                    </div>
+                                ) : currentQ.type === 'who_said' ? (
+                                    <p className="text-3xl md:text-4xl font-medium leading-relaxed italic text-white">"{currentQ.text.replace(/"/g, '')}"</p>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {currentQ.context.split('\n\n').map((line, i) => (
+                                            <div key={i} className={`p-4 rounded-2xl ${i === 1 ? 'bg-yellow-900/30 border border-neon-yellow/50' : 'bg-dark-surface'}`}>
+                                                <p className={`text-xl md:text-2xl ${i === 1 ? 'font-bold text-neon-yellow' : 'text-gray-300'}`}>{line}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {!hasAnswered ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {currentQ.options.map((opt, i) => (
+                                    <button 
+                                        key={i}
+                                        onClick={() => submitAnswer(opt)}
+                                        className={`bg-dark-surface hover:bg-gray-800 border-2 border-gray-700 p-6 rounded-2xl text-left font-bold text-xl transition-all active:scale-95 shadow-md hover:shadow-lg ${isEmoji ? 'hover:border-neon-yellow hover:text-neon-yellow' : 'hover:border-neon-cyan hover:text-neon-cyan'}`}
+                                    >
+                                        {opt}
+                                    </button>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center p-10 bg-dark-surface rounded-3xl border border-gray-700 shadow-xl">
+                                <h3 className="text-2xl font-black mb-2 text-white">Answer Locked 🔒</h3>
+                                <p className="text-gray-400 mb-8 text-lg">Waiting for the group...</p>
+                                
+                                <div className="flex justify-center gap-3 mb-8">
+                                    {Object.keys(room.players).map(pid => (
+                                        <div key={pid} className={`w-4 h-4 rounded-full transition-all duration-500 ${room.gameData?.answers?.[qIndex]?.[pid] ? (isEmoji ? 'bg-neon-yellow shadow-[0_0_10px_#ffc300]' : 'bg-neon-cyan shadow-[0_0_10px_#05d9e8]') : 'bg-gray-700'}`}></div>
+                                    ))}
+                                </div>
+
+                                {isHost && allAnswered && (
+                                    <button onClick={nextQuestion} className={`w-full text-black px-8 py-4 rounded-xl font-bold text-xl animate-pulse hover:brightness-110 shadow-lg ${isEmoji ? 'bg-neon-yellow shadow-yellow-900/50' : 'bg-neon-cyan shadow-cyan-900/50'}`}>
+                                        {qIndex + 1 < questions.length ? 'Next Question' : 'View Results'}
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Mode 3: Playlist Ring ---
+        const PlaylistRingGame = ({ room, user, onLeave }) => {
+            const isHost = room.host === user.uid;
+            const phase = room.gameData?.phase || 'PROMPT';
+            
+            // PROMPT state
+            const [promptInput, setPromptInput] = React.useState('');
+            // BUILD state
+            const [search, setSearch] = React.useState('');
+            const [results, setResults] = React.useState([]);
+            const [myPlaylist, setMyPlaylist] = React.useState([]);
+            // GUESS state
+            const [myGuesses, setMyGuesses] = React.useState({});
+
+            const allPromptsSubmitted = Object.keys(room.gameData?.prompts || {}).length === Object.keys(room.players).length;
+            const allPlaylistsSubmitted = Object.keys(room.gameData?.playlists || {}).length === Object.keys(room.players).length;
+            const allGuessed = Object.keys(room.gameData?.guesses || {}).length === Object.keys(room.players).length;
+
+            const submitPrompt = async () => {
+                if (!promptInput.trim()) return;
+                await getRoomRef(room.id).update({ [`gameData.prompts.${user.uid}`]: promptInput.trim() });
+            };
+
+            const assignAndMoveToBuild = async () => {
+                if (!isHost) return;
+                const assignments = generateDerangedAssignments(Object.keys(room.players));
+                if (!assignments) { alert("Need at least 2 players to shuffle properly."); return; }
+                await getRoomRef(room.id).update({ 'gameData.assignments': assignments, 'gameData.phase': 'BUILD' });
+            };
+
+            const searchItunes = async (query) => {
+                if (!query) return;
+                try {
+                    const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=8`);
+                    const data = await res.json();
+                    setResults(data.results);
+                } catch (e) { console.error("Search failed", e); }
+            };
+
+            const addSong = (track) => {
+                if (myPlaylist.length >= 3) return;
+                if (!myPlaylist.find(s => s.id === track.trackId)) {
+                    setMyPlaylist([...myPlaylist, { id: track.trackId, title: track.trackName, artist: track.artistName, cover: track.artworkUrl100 }]);
+                }
+            };
+            const removeSong = (id) => setMyPlaylist(myPlaylist.filter(s => s.id !== id));
+
+            const submitPlaylist = async () => {
+                if (myPlaylist.length === 0) return;
+                await getRoomRef(room.id).update({ [`gameData.playlists.${user.uid}`]: myPlaylist });
+            };
+
+            const submitGuesses = async () => {
+                await getRoomRef(room.id).update({ [`gameData.guesses.${user.uid}`]: myGuesses });
+            };
+
+            const revealScores = async () => {
+                if (!isHost) return;
+                let updates = { 'gameData.phase': 'RESULTS' };
+                Object.keys(room.players).forEach(pId => {
+                    let score = room.players[pId].score || 0;
+                    const pGuesses = room.gameData.guesses[pId] || {};
+                    Object.entries(pGuesses).forEach(([playlistBuilderUid, guessedPromptCreatorUid]) => {
+                        // Did they guess who wrote the prompt that this playlist was built for?
+                        const actualPromptCreatorUid = room.gameData.assignments[playlistBuilderUid];
+                        if (guessedPromptCreatorUid === actualPromptCreatorUid) score += 100;
+                    });
+                    updates[`players.${pId}.score`] = score;
+                });
+                await getRoomRef(room.id).update(updates);
+            };
+
+            if (phase === 'PROMPT') {
+                const hasSubmitted = !!room.gameData?.prompts?.[user.uid];
+                return (
+                    <div className="flex-1 flex flex-col items-center justify-center">
+                        <div className="glass-panel p-8 rounded-3xl w-full max-w-lg text-center shadow-2xl">
+                            <h2 className="text-4xl font-black mb-4 text-neon-yellow">Set the Vibe</h2>
+                            <p className="text-gray-400 mb-8 text-lg">Write a prompt or theme. Someone else will have to build a 3-song playlist for it.</p>
+                            
+                            {!hasSubmitted ? (
+                                <>
+                                    <textarea 
+                                        value={promptInput} onChange={(e) => setPromptInput(e.target.value)}
+                                        placeholder="e.g., 'Late night drive contemplating life' or 'Boss fight music'"
+                                        className="w-full bg-dark-bg/50 border border-gray-600 rounded-xl p-4 text-white focus:border-neon-yellow focus:outline-none mb-6 h-32 resize-none text-lg"
+                                        maxLength="60"
+                                    />
+                                    <button onClick={submitPrompt} disabled={!promptInput.trim()} className="w-full bg-neon-yellow text-black font-bold py-4 rounded-xl disabled:opacity-50 text-xl hover:bg-yellow-400 transition-colors">Submit Vibe</button>
+                                </>
+                            ) : (
+                                <div>
+                                    <h3 className="text-2xl font-bold mb-4">Vibe Submitted!</h3>
+                                    <p className="text-gray-400 mb-8">Waiting for others...</p>
+                                    {isHost && allPromptsSubmitted && (
+                                        <button onClick={assignAndMoveToBuild} className="w-full bg-neon-cyan text-black py-4 rounded-xl font-bold text-xl animate-pulse hover:bg-cyan-400">Assign & Build Playlists</button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            }
+
+            if (phase === 'BUILD') {
+                const targetUid = room.gameData.assignments[user.uid];
+                const targetPrompt = room.gameData.prompts[targetUid];
+                const hasSubmitted = !!room.gameData?.playlists?.[user.uid];
+
+                return (
+                    <div className="flex-1 flex flex-col h-full overflow-hidden">
+                        <div className="text-center mb-6 shrink-0">
+                            <p className="text-neon-cyan font-bold uppercase tracking-widest mb-2">Your Assigned Vibe</p>
+                            <h2 className="text-3xl font-black text-white italic">"{targetPrompt}"</h2>
+                        </div>
+
+                        {!hasSubmitted ? (
+                            <div className="flex-1 flex flex-col md:flex-row gap-6 min-h-0">
+                                {/* Search Col */}
+                                <div className="flex-1 glass-panel p-6 rounded-3xl flex flex-col min-h-0">
+                                    <div className="flex gap-2 mb-4 bg-dark-bg p-2 rounded-xl border border-gray-700 shrink-0">
+                                        <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && searchItunes(search)} placeholder="Search songs..." className="flex-1 bg-transparent border-none p-2 text-white focus:outline-none"/>
+                                        <button onClick={() => searchItunes(search)} className="bg-gray-700 hover:bg-gray-600 px-4 rounded-lg font-bold">Search</button>
+                                    </div>
+                                    <div className="flex-1 overflow-y-auto hide-scrollbar space-y-2">
+                                        {results.map(track => (
+                                            <div key={track.trackId} className="flex items-center gap-3 p-3 rounded-xl bg-dark-surface border border-gray-700/50 hover:border-gray-500">
+                                                <img src={track.artworkUrl100} className="w-10 h-10 rounded-md" />
+                                                <div className="flex-1 overflow-hidden">
+                                                    <p className="font-bold truncate text-sm">{track.trackName}</p>
+                                                    <p className="text-xs text-gray-400 truncate">{track.artistName}</p>
+                                                </div>
+                                                <button onClick={() => addSong(track)} disabled={myPlaylist.length >= 3} className="p-2 bg-neon-cyan/20 text-neon-cyan rounded-lg hover:bg-neon-cyan hover:text-black transition-colors disabled:opacity-30"><Icon name="Plus" size={16}/></button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                {/* Playlist Col */}
+                                <div className="w-full md:w-1/3 flex flex-col gap-4 shrink-0 md:shrink">
+                                    <div className="glass-panel p-6 rounded-3xl flex-1 flex flex-col border-2 border-neon-cyan/30 min-h-[300px]">
+                                        <h3 className="font-bold text-xl mb-4 text-neon-cyan">The Playlist ({myPlaylist.length}/3)</h3>
+                                        <div className="flex-1 space-y-3">
+                                            {myPlaylist.map((s, i) => (
+                                                <div key={s.id} className="flex items-center gap-3 bg-dark-bg p-3 rounded-xl border border-neon-cyan/30">
+                                                    <span className="text-gray-500 font-bold">{i+1}</span>
+                                                    <img src={s.cover} className="w-10 h-10 rounded-md" />
+                                                    <div className="flex-1 overflow-hidden">
+                                                        <p className="font-bold truncate text-sm">{s.title}</p>
+                                                    </div>
+                                                    <button onClick={() => removeSong(s.id)} className="text-red-400 hover:text-red-300"><Icon name="Trash2" size={18}/></button>
+                                                </div>
+                                            ))}
+                                            {myPlaylist.length === 0 && <p className="text-gray-500 text-sm text-center mt-10">Add up to 3 songs that fit the vibe.</p>}
+                                        </div>
+                                        <button onClick={submitPlaylist} disabled={myPlaylist.length === 0} className="w-full mt-4 bg-neon-cyan text-black py-4 rounded-xl font-bold text-lg hover:bg-cyan-400 disabled:opacity-30">Lock In Playlist</button>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex-1 flex items-center justify-center">
+                                <div className="text-center glass-panel p-12 rounded-3xl">
+                                    <h3 className="text-3xl font-bold mb-4">Playlist Locked! 💿</h3>
+                                    <p className="text-gray-400 mb-8">Waiting for others to finish curating...</p>
+                                    {isHost && allPlaylistsSubmitted && (
+                                        <button onClick={() => getRoomRef(room.id).update({ 'gameData.phase': 'GUESS' })} className="w-full bg-neon-pink text-white px-8 py-4 rounded-xl font-bold text-xl animate-pulse">Start Guessing</button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                );
+            }
+
+            if (phase === 'GUESS') {
+                const playlists = Object.entries(room.gameData.playlists || {});
+                const promptsList = Object.entries(room.gameData.prompts || {});
+                const hasGuessed = !!room.gameData?.guesses?.[user.uid];
+
+                return (
+                    <div className="flex-1 flex flex-col h-full pb-20">
+                        <div className="text-center mb-6 shrink-0">
+                            <h2 className="text-3xl font-black text-white mb-2">Whose vibe is this?</h2>
+                            <p className="text-gray-400">Match the curated playlist to the original prompt creator.</p>
+                        </div>
+
+                        {!hasGuessed ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 overflow-y-auto hide-scrollbar px-2 pb-10">
+                                {playlists.map(([builderId, songs]) => (
+                                    <div key={builderId} className="glass-panel p-6 rounded-3xl flex flex-col gap-4 border border-gray-700/50">
+                                        <div className="flex gap-2 justify-center">
+                                            {songs.map(s => <img key={s.id} src={s.cover} className="w-16 h-16 rounded-lg shadow-md hover:scale-110 transition-transform" title={s.title}/>)}
+                                        </div>
+                                        <select 
+                                            className="w-full mt-auto bg-dark-bg border-2 border-gray-600 rounded-xl p-3 text-white focus:border-neon-pink focus:outline-none font-bold"
+                                            value={myGuesses[builderId] || ''}
+                                            onChange={(e) => setMyGuesses(prev => ({...prev, [builderId]: e.target.value}))}
+                                        >
+                                            <option value="" disabled>Guess the Original Vibe...</option>
+                                            {promptsList.map(([promptOwnerId, promptText]) => (
+                                                <option key={promptOwnerId} value={promptOwnerId}>"{promptText}"</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="flex-1 flex items-center justify-center">
+                                <div className="text-center glass-panel p-12 rounded-3xl">
+                                    <h3 className="text-3xl font-bold mb-4">Guesses Locked!</h3>
+                                    <p className="text-gray-400 mb-8">Ready for the chaos?</p>
+                                    {isHost && allGuessed && (
+                                        <button onClick={revealScores} className="bg-neon-pink text-white px-8 py-4 rounded-xl font-bold text-xl animate-pulse">Reveal Results</button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {!hasGuessed && (
+                            <div className="fixed bottom-6 left-0 w-full flex justify-center px-4 pointer-events-none">
+                                <button 
+                                    onClick={submitGuesses} disabled={Object.keys(myGuesses).length !== playlists.length}
+                                    className="w-full max-w-lg bg-neon-pink text-white font-bold py-4 rounded-2xl shadow-[0_10px_40px_rgba(255,42,109,0.3)] disabled:opacity-0 pointer-events-auto text-xl active:scale-95"
+                                >
+                                    Submit Guesses
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                );
+            }
+
+            if (phase === 'RESULTS') return <ResultsScreen room={room} isHost={isHost} onBack={() => getRoomRef(room.id).update({ state: 'LOBBY', gameData: {} })} />;
+            
+            return null;
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
