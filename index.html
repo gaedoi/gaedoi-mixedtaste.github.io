@@ -25,6 +25,7 @@
                         'blob': 'blob 7s infinite',
                         'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                         'bounce-slow': 'bounce 2s infinite',
+                        'fade-in': 'fadeIn 0.5s ease-out forwards'
                     },
                     keyframes: {
                         blob: {
@@ -32,6 +33,10 @@
                             '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
                             '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
                             '100%': { transform: 'translate(0px, 0px) scale(1)' },
+                        },
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' }
                         }
                     }
                 }
@@ -68,7 +73,6 @@
         audio::-webkit-media-controls-play-button, audio::-webkit-media-controls-mute-button { background-color: #05d9e8; border-radius: 50%; }
         audio::-webkit-media-controls-current-time-display, audio::-webkit-media-controls-time-remaining-display { color: white; }
         
-        /* Custom range slider styling */
         input[type=range] {
             -webkit-appearance: none;
             width: 100%;
@@ -101,7 +105,6 @@
         const appId = 'mixed-taste-app';
         let db, auth;
 
-        // Charlie's Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyBks1pTTzyDNMwqKPxb0c3oB0d-q9GteHU",
             authDomain: "mixed-taste.firebaseapp.com",
@@ -125,20 +128,16 @@
             const lines = text.split('\n');
             const messages = [];
             const regex = /^\[(\d{2}\/\d{2}\/\d{4}),\s(\d{2}:\d{2}:\d{2})\]\s([^:]+):\s(.*)$/;
-            
             let currentMsg = null;
-
             for (let line of lines) {
                 line = line.trim();
                 if (!line) continue;
                 if (line.includes('‎') || line.includes('omitted') || line.includes('This message was deleted')) continue; 
-
                 const match = line.match(regex);
                 if (match) {
                     if (currentMsg && currentMsg.text.length > 3) messages.push(currentMsg);
                     const sender = match[3].trim();
                     if (sender.includes('added') || sender.includes('changed') || sender.length > 25) continue;
-
                     currentMsg = { date: match[1], time: match[2], sender: sender, text: match[4].trim() };
                 } else if (currentMsg) {
                     currentMsg.text += " " + line;
@@ -152,7 +151,6 @@
             const questions = [];
             const senders = [...new Set(messages.map(m => m.sender))];
             if (senders.length < 2 || messages.length < 20) return null;
-
             for (let i = 0; i < numQuestions; i++) {
                 const type = Math.random() > 0.5 ? 'who_said' : 'fill_blank';
                 if (type === 'who_said') {
@@ -168,7 +166,6 @@
                     const idx = Math.floor(Math.random() * (messages.length - 2));
                     const contextMsg = messages[idx];
                     const targetMsg = messages[idx + 1];
-
                     let options = new Set([targetMsg.text]);
                     const senderMsgs = messages.filter(m => m.sender === targetMsg.sender && m.text !== targetMsg.text && m.text.length > 3);
                     while(options.size < 4 && senderMsgs.length > options.size) {
@@ -183,7 +180,6 @@
         const generateEmojiQuestions = (messages, numQuestions = 5) => {
             const emojiStats = {}; 
             const emojiRegex = /\p{Emoji_Presentation}|\p{Extended_Pictographic}/gu;
-            
             messages.forEach(m => {
                 const emojis = m.text.match(emojiRegex);
                 if (emojis) {
@@ -193,7 +189,6 @@
                     });
                 }
             });
-
             const validEmojis = Object.entries(emojiStats)
                 .map(([emoji, counts]) => {
                     const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]);
@@ -201,10 +196,8 @@
                 })
                 .filter(e => e.maxCount >= 2) 
                 .sort(() => Math.random() - 0.5); 
-
             const senders = [...new Set(messages.map(m => m.sender))];
             const questions = [];
-
             for (let i = 0; i < Math.min(numQuestions, validEmojis.length); i++) {
                 const target = validEmojis[i];
                 let options = new Set([target.topSender]);
@@ -250,28 +243,34 @@
                     case 'ArrowDown': return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>;
                     case 'Link': return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>;
                     case 'Settings': return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>;
+                    case 'HeartPulse': return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/><path d="M3.22 12H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27"/></svg>;
                     default: return null;
                 }
             };
             return getIcon();
         };
 
-        // --- Common Component: Timer Display ---
-        const TimerDisplay = ({ deadline }) => {
+        const TimerDisplay = ({ deadline, maciMode }) => {
             const [timeLeft, setTimeLeft] = React.useState(0);
             
             React.useEffect(() => {
-                if (!deadline) return;
+                if (maciMode || !deadline) return;
                 const update = () => setTimeLeft(Math.max(0, Math.floor((deadline - Date.now()) / 1000)));
                 update();
                 const interval = setInterval(update, 1000);
                 return () => clearInterval(interval);
-            }, [deadline]);
+            }, [deadline, maciMode]);
+
+            if (maciMode) {
+                return (
+                    <div className="fixed top-4 md:top-6 left-1/2 -translate-x-1/2 z-[60] glass-panel px-6 py-2 rounded-full border-2 border-neon-cyan/50 text-neon-cyan font-mono font-bold text-xl md:text-2xl flex items-center gap-2 shadow-lg transition-colors animate-pulse">
+                        <Icon name="Timer" size={24} /> Waiting for Maci...
+                    </div>
+                );
+            }
 
             if (!deadline || timeLeft <= 0) return null;
-
             const isUrgent = timeLeft <= 10;
-
             return (
                 <div className={`fixed top-4 md:top-6 left-1/2 -translate-x-1/2 z-[60] glass-panel px-6 py-2 rounded-full border-2 ${isUrgent ? 'border-neon-pink text-neon-pink animate-pulse' : 'border-neon-cyan/50 text-neon-cyan'} font-mono font-bold text-xl md:text-2xl flex items-center gap-2 shadow-lg transition-colors`}>
                     <Icon name="Timer" size={24} /> 00:{timeLeft.toString().padStart(2, '0')}
@@ -287,19 +286,11 @@
             const [error, setError] = React.useState('');
 
             React.useEffect(() => {
-                if (!auth) {
-                    setError("Firebase not initialized. Check console.");
-                    return;
-                }
+                if (!auth) return;
                 const initAuth = async () => {
-                    try {
-                        await auth.signInAnonymously();
-                    } catch (err) {
-                        setError("Failed to connect to game servers.");
-                    }
+                    try { await auth.signInAnonymously(); } catch (err) { setError("Failed to connect to game servers."); }
                 };
                 initAuth();
-
                 const unsubscribe = auth.onAuthStateChanged(u => {
                     setUser(u);
                     const savedName = localStorage.getItem('mixedTasteName');
@@ -312,12 +303,8 @@
                 if (!user || !room?.id) return;
                 const unsub = getRoomRef(room.id).onSnapshot(
                     (doc) => {
-                        if (doc.exists) {
-                            setRoom({ id: doc.id, ...doc.data() });
-                        } else {
-                            setRoom(null);
-                            setError("Room closed by host.");
-                        }
+                        if (doc.exists) setRoom({ id: doc.id, ...doc.data() });
+                        else setRoom(null);
                     },
                     (err) => console.error("Room sync error:", err)
                 );
@@ -327,51 +314,27 @@
             const handleCreateRoom = async (name) => {
                 if (!user) return;
                 const roomId = generateRoomCode();
-                try {
-                    await getRoomRef(roomId).set({
-                        host: user.uid,
-                        state: 'LOBBY',
-                        currentMode: 'song_king', 
-                        players: { [user.uid]: { name, score: 0, ready: false } },
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                    localStorage.setItem('mixedTasteName', name);
-                    setRoom({ id: roomId });
-                } catch (err) {
-                    setError("Failed to create room.");
-                }
+                await getRoomRef(roomId).set({
+                    host: user.uid, state: 'LOBBY', currentMode: 'song_king', players: { [user.uid]: { name, score: 0, ready: false } }, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                localStorage.setItem('mixedTasteName', name);
+                setRoom({ id: roomId });
             };
 
             const handleJoinRoom = async (roomId, name) => {
                 if (!user) return;
-                try {
-                    const roomDoc = await getRoomRef(roomId).get();
-                    if (!roomDoc.exists) {
-                        setError("Room not found.");
-                        return;
-                    }
-                    const data = roomDoc.data();
-                    if (data.state !== 'LOBBY') {
-                        setError("Game already in progress.");
-                        return;
-                    }
-                    await getRoomRef(roomId).update({
-                        [`players.${user.uid}`]: { name, score: 0, ready: false }
-                    });
-                    localStorage.setItem('mixedTasteName', name);
-                    setRoom({ id: roomId });
-                } catch (err) {
-                    setError("Failed to join room.");
-                }
+                const roomDoc = await getRoomRef(roomId).get();
+                if (!roomDoc.exists) { setError("Room not found."); return; }
+                if (roomDoc.data().state !== 'LOBBY') { setError("Game already in progress."); return; }
+                await getRoomRef(roomId).update({ [`players.${user.uid}`]: { name, score: 0, ready: false } });
+                localStorage.setItem('mixedTasteName', name);
+                setRoom({ id: roomId });
             };
 
             const leaveRoom = async () => {
                 if (room && user) {
-                    if (room.host === user.uid) {
-                        await getRoomRef(room.id).delete();
-                    } else {
-                        await getRoomRef(room.id).update({ [`players.${user.uid}`]: firebase.firestore.FieldValue.delete() });
-                    }
+                    if (room.host === user.uid) await getRoomRef(room.id).delete();
+                    else await getRoomRef(room.id).update({ [`players.${user.uid}`]: firebase.firestore.FieldValue.delete() });
                 }
                 setRoom(null);
             };
@@ -380,19 +343,16 @@
 
             return (
                 <div className="min-h-screen relative overflow-x-hidden font-sans">
-                    {/* Atmospheric Background */}
                     <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-neon-pink rounded-full mix-blend-multiply filter blur-[128px] opacity-20 animate-blob"></div>
                     <div className="absolute top-[20%] right-[-10%] w-96 h-96 bg-neon-cyan rounded-full mix-blend-multiply filter blur-[128px] opacity-20 animate-blob animation-delay-2000"></div>
                     <div className="absolute bottom-[-20%] left-[20%] w-96 h-96 bg-neon-yellow rounded-full mix-blend-multiply filter blur-[128px] opacity-20 animate-blob animation-delay-4000"></div>
 
-                    {/* About Section - Top Right */}
                     <div className="absolute top-4 right-4 md:top-6 md:right-6 z-[40] glass-panel px-4 py-2 rounded-full flex items-center gap-3 shadow-lg border border-gray-700/50 transition-transform hover:scale-105 cursor-default hidden sm:flex">
                         <span className="text-xs md:text-sm font-bold text-gray-300 tracking-wide">Idea by Charlie Blake</span>
                         <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSW_C7jBu-wEIBaM8ja0qSmsuUnMpIk5xPstg&s" alt="Charlie Blake" className="w-8 h-8 rounded-full border-2 border-neon-cyan object-cover shadow-[0_0_10px_rgba(5,217,232,0.5)]" />
                     </div>
 
-                    {/* Active Game Timer */}
-                    {room && room.state === 'PLAYING' && <TimerDisplay deadline={room.gameData?.deadline} />}
+                    {room && room.state === 'PLAYING' && <TimerDisplay deadline={room.gameData?.deadline} maciMode={room.gameData?.settings?.maciMode} />}
 
                     <div className="relative z-10 p-4 md:p-8 max-w-5xl mx-auto min-h-screen flex flex-col">
                         {error && (
@@ -414,126 +374,67 @@
             );
         };
 
-        // --- Home Screen ---
         const HomeScreen = ({ onCreate, onJoin, defaultName }) => {
             const [name, setName] = React.useState(defaultName);
             const [roomCode, setRoomCode] = React.useState('');
-
             return (
                 <div className="flex-1 flex flex-col items-center justify-center text-center mt-16 md:mt-0 py-8">
                     <div className="mb-8 md:mb-12 relative">
                         <h1 className="text-6xl md:text-8xl font-bold mb-2 tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-neon-pink via-neon-yellow to-neon-cyan pb-2">Mixed Taste</h1>
                         <p className="text-gray-400 text-lg md:text-xl font-medium tracking-wide">The chaotic friend group party game.</p>
                     </div>
-
                     <div className="glass-panel p-6 md:p-8 rounded-3xl w-full max-w-md shadow-2xl border border-gray-700/50 mb-8">
                         <div className="mb-6 text-left">
                             <label className="block text-sm font-semibold text-gray-300 mb-2 uppercase tracking-widest">Player Name</label>
-                            <input 
-                                type="text" 
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                className="w-full bg-dark-bg/50 border border-gray-600 rounded-xl p-4 text-white focus:border-neon-cyan focus:outline-none focus:ring-2 focus:ring-neon-cyan/20 transition-all text-lg font-medium"
-                                placeholder="e.g. DJ Chaos"
-                                maxLength="15"
-                            />
+                            <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-dark-bg/50 border border-gray-600 rounded-xl p-4 text-white focus:border-neon-cyan focus:outline-none focus:ring-2 focus:ring-neon-cyan/20 transition-all text-lg font-medium" placeholder="e.g. DJ Chaos" maxLength="15" />
                         </div>
-
-                        <button 
-                            onClick={() => name && onCreate(name)}
-                            disabled={!name}
-                            className="w-full bg-gradient-to-r from-neon-pink to-pink-600 disabled:opacity-50 text-white font-bold py-4 px-4 rounded-xl transition-transform active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-neon-pink/20"
-                        >
-                            <Icon name="Crown" size={20} /> Create New Room
-                        </button>
-
-                        <div className="my-8 relative">
-                            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-700"></div></div>
-                            <div className="relative flex justify-center"><span className="bg-[#1a1c29] px-4 text-sm text-gray-400 font-bold tracking-widest">OR</span></div>
-                        </div>
-
+                        <button onClick={() => name && onCreate(name)} disabled={!name} className="w-full bg-gradient-to-r from-neon-pink to-pink-600 disabled:opacity-50 text-white font-bold py-4 px-4 rounded-xl transition-transform active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-neon-pink/20"><Icon name="Crown" size={20} /> Create New Room</button>
+                        <div className="my-8 relative"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-700"></div></div><div className="relative flex justify-center"><span className="bg-[#1a1c29] px-4 text-sm text-gray-400 font-bold tracking-widest">OR</span></div></div>
                         <div className="flex flex-col sm:flex-row gap-3 w-full">
-                            <input 
-                                type="text" 
-                                value={roomCode}
-                                onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                                className="w-full bg-dark-bg/50 border border-gray-600 rounded-xl p-4 text-white uppercase text-center tracking-[0.3em] font-mono focus:border-neon-cyan focus:outline-none text-xl"
-                                placeholder="CODE"
-                                maxLength="4"
-                            />
-                            <button 
-                                onClick={() => name && roomCode.length === 4 && onJoin(roomCode, name)}
-                                disabled={!name || roomCode.length !== 4}
-                                className="w-full sm:w-auto bg-neon-cyan hover:bg-cyan-500 disabled:opacity-50 text-black font-bold py-4 px-8 rounded-xl transition-transform active:scale-95 shadow-lg shadow-neon-cyan/20"
-                            >
-                                Join
-                            </button>
+                            <input type="text" value={roomCode} onChange={(e) => setRoomCode(e.target.value.toUpperCase())} className="w-full bg-dark-bg/50 border border-gray-600 rounded-xl p-4 text-white uppercase text-center tracking-[0.3em] font-mono focus:border-neon-cyan focus:outline-none text-xl" placeholder="CODE" maxLength="4" />
+                            <button onClick={() => name && roomCode.length === 4 && onJoin(roomCode, name)} disabled={!name || roomCode.length !== 4} className="w-full sm:w-auto bg-neon-cyan hover:bg-cyan-500 disabled:opacity-50 text-black font-bold py-4 px-8 rounded-xl transition-transform active:scale-95 shadow-lg shadow-neon-cyan/20">Join</button>
                         </div>
                     </div>
                 </div>
             );
         };
 
-        // --- Lobby Screen ---
         const LobbyScreen = ({ room, user, onLeave }) => {
             const isHost = room.host === user.uid;
             const players = Object.entries(room.players || {});
-            
             const [parsingLog, setParsingLog] = React.useState('');
 
-            // Settings State
+            // Settings
             const [quizTime, setQuizTime] = React.useState(20);
             const [submitTime, setSubmitTime] = React.useState(60);
             const [guessTime, setGuessTime] = React.useState(60);
+            const [maciMode, setMaciMode] = React.useState(false); // Infinite time mode
 
             const modes = [
                 { id: 'song_king', name: 'Song King', icon: 'Music', desc: 'Secretly submit songs. Guess who picked what.', active: true },
                 { id: 'playlist_ring', name: 'Playlist Ring', icon: 'ListMusic', desc: 'Create a prompt. Build a playlist. Cause chaos.', active: true },
                 { id: 'whatsapp', name: 'Whatsapp Expozed', icon: 'MessageCircle', desc: 'Upload a chat export. Get quizzed on your chaos.', active: true },
                 { id: 'emoji_go', name: 'Emoji Go With Who?', icon: 'Smile', desc: 'Analyzes chat logs to find who uses 💀 the most.', active: true },
-                { id: 'chat_chain', name: 'Chat Chain', icon: 'Link', desc: 'Whatsapp Gartic Phone. Turn real texts to emojis and back.', active: true }
+                { id: 'chat_chain', name: 'Chat Chain', icon: 'Link', desc: 'Whatsapp Gartic Phone. Turn real texts to emojis and back.', active: true },
+                { id: 'chat_soundtrack', name: 'Chat Soundtrack', icon: 'HeartPulse', desc: 'Find the perfect iTunes song to score a random WhatsApp quote.', active: true }
             ];
-
-            const setMode = async (modeId) => {
-                if (!isHost) return;
-                await getRoomRef(room.id).update({ currentMode: modeId });
-            };
-
-            const toggleReady = async () => {
-                const currentReady = room.players[user.uid]?.ready;
-                await getRoomRef(room.id).update({ [`players.${user.uid}.ready`]: !currentReady });
-            };
 
             const handleFileUpload = (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
                 setParsingLog('Analyzing chaos...');
-                
                 const reader = new FileReader();
                 reader.onload = async (e) => {
                     const text = e.target.result;
                     const messages = parseWhatsAppLog(text);
-                    
-                    if (messages.length < 20) {
-                        setParsingLog('❌ Error: Need at least 20 messages in log.');
-                        return;
-                    }
-                    
+                    if (messages.length < 20) { setParsingLog('❌ Error: Need at least 20 messages in log.'); return; }
                     const wpQs = generateWhatsappQuestions(messages, 6);
                     const emQs = generateEmojiQuestions(messages, 6);
-
-                    if (!wpQs && !emQs) {
-                        setParsingLog('❌ Error: Not enough varied senders/data.');
-                        return;
-                    }
-
+                    if (!wpQs && !emQs) { setParsingLog('❌ Error: Not enough varied senders/data.'); return; }
                     const validMsgs = messages.filter(m => m.text.length > 10 && m.text.length < 150);
                     const chatMessages = validMsgs.sort(() => Math.random() - 0.5).slice(0, 40);
-
                     await getRoomRef(room.id).update({
-                        'gameData.whatsappQuestions': wpQs || [],
-                        'gameData.emojiQuestions': emQs || [],
-                        'gameData.chatMessages': chatMessages
+                        'gameData.whatsappQuestions': wpQs || [], 'gameData.emojiQuestions': emQs || [], 'gameData.chatMessages': chatMessages
                     });
                     setParsingLog(`✅ Success! Loaded data from ${messages.length} messages.`);
                 };
@@ -542,68 +443,34 @@
 
             const startGame = async () => {
                 if (!isHost) return;
-                
-                let initialData = {
-                    settings: { quizTime, submitTime, guessTime }
-                };
+                let initialData = { settings: { quizTime, submitTime, guessTime, maciMode } };
 
                 if (room.currentMode === 'song_king') {
-                    initialData.phase = 'SUBMIT';
-                    initialData.songs = {};
-                    initialData.guesses = {};
-                    initialData.deadline = Date.now() + (submitTime * 1000);
+                    initialData.phase = 'SUBMIT'; initialData.songs = {}; initialData.guesses = {}; initialData.deadline = Date.now() + (submitTime * 1000);
                 } else if (room.currentMode === 'playlist_ring') {
-                    initialData.phase = 'PROMPT';
-                    initialData.prompts = {};
-                    initialData.assignments = {};
-                    initialData.playlists = {};
-                    initialData.guesses = {};
-                    initialData.deadline = Date.now() + (submitTime * 1000);
+                    initialData.phase = 'PROMPT'; initialData.prompts = {}; initialData.assignments = {}; initialData.playlists = {}; initialData.guesses = {}; initialData.lockedIn = {}; initialData.deadline = Date.now() + (submitTime * 1000);
                 } else if (room.currentMode === 'whatsapp') {
-                    if (!room.gameData?.whatsappQuestions?.length) {
-                        alert("Please upload and parse a WhatsApp log first!");
-                        return;
-                    }
-                    initialData.phase = 'QUESTION';
-                    initialData.currentQIndex = 0;
-                    initialData.answers = {};
-                    initialData.questions = room.gameData.whatsappQuestions;
-                    initialData.deadline = Date.now() + (quizTime * 1000);
+                    if (!room.gameData?.whatsappQuestions?.length) { alert("Upload a WhatsApp log first!"); return; }
+                    initialData.phase = 'QUESTION'; initialData.currentQIndex = 0; initialData.answers = {}; initialData.questions = room.gameData.whatsappQuestions; initialData.deadline = Date.now() + (quizTime * 1000);
                 } else if (room.currentMode === 'emoji_go') {
-                    if (!room.gameData?.emojiQuestions?.length) {
-                        alert("Please upload a WhatsApp log with sufficient Emoji usage first!");
-                        return;
-                    }
-                    initialData.phase = 'QUESTION';
-                    initialData.currentQIndex = 0;
-                    initialData.answers = {};
-                    initialData.questions = room.gameData.emojiQuestions;
-                    initialData.deadline = Date.now() + (quizTime * 1000);
+                    if (!room.gameData?.emojiQuestions?.length) { alert("Upload a WhatsApp log with Emoji usage first!"); return; }
+                    initialData.phase = 'QUESTION'; initialData.currentQIndex = 0; initialData.answers = {}; initialData.questions = room.gameData.emojiQuestions; initialData.deadline = Date.now() + (quizTime * 1000);
                 } else if (room.currentMode === 'chat_chain') {
-                    if (!room.gameData?.chatMessages?.length) {
-                        alert("Please upload and parse a WhatsApp log first!");
-                        return;
-                    }
+                    if (!room.gameData?.chatMessages?.length) { alert("Upload a WhatsApp log first!"); return; }
                     const uids = Object.keys(room.players);
                     const messagesPool = [...room.gameData.chatMessages];
                     const initialAssignments = {};
-                    uids.forEach(uid => {
-                        initialAssignments[uid] = messagesPool.pop()?.text || "Hello world";
-                    });
-                    initialData.phase = 'ENCODE';
-                    initialData.assignmentsEncode = initialAssignments;
-                    initialData.encodeSubmissions = {};
-                    initialData.assignmentsDecode = {};
-                    initialData.decodeSubmissions = {};
-                    initialData.deadline = Date.now() + (submitTime * 1000);
+                    uids.forEach(uid => { initialAssignments[uid] = messagesPool.pop()?.text || "Hello world"; });
+                    initialData.phase = 'ENCODE'; initialData.assignmentsEncode = initialAssignments; initialData.encodeSubmissions = {}; initialData.assignmentsDecode = {}; initialData.decodeSubmissions = {}; initialData.deadline = Date.now() + (submitTime * 1000);
+                } else if (room.currentMode === 'chat_soundtrack') {
+                    if (!room.gameData?.chatMessages?.length) { alert("Upload a WhatsApp log first!"); return; }
+                    const messagesPool = [...room.gameData.chatMessages];
+                    initialData.promptMessage = messagesPool[Math.floor(Math.random() * messagesPool.length)];
+                    initialData.phase = 'SUBMIT'; initialData.songs = {}; initialData.votes = {}; initialData.deadline = Date.now() + (submitTime * 1000);
                 }
 
                 let updates = { state: 'PLAYING', gameData: initialData };
-                Object.keys(room.players).forEach(pId => {
-                    updates[`players.${pId}.score`] = 0;
-                    updates[`players.${pId}.ready`] = false;
-                });
-
+                Object.keys(room.players).forEach(pId => { updates[`players.${pId}.score`] = 0; updates[`players.${pId}.ready`] = false; });
                 await getRoomRef(room.id).update(updates);
             };
 
@@ -622,21 +489,14 @@
                             <h2 className="text-2xl font-bold mb-6">Select Mode</h2>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {modes.map(m => (
-                                    <div 
-                                        key={m.id}
-                                        onClick={() => m.active && setMode(m.id)}
-                                        className={`p-5 rounded-2xl border-2 transition-all ${!m.active ? 'opacity-50 cursor-not-allowed border-gray-700 bg-gray-800/50' : room.currentMode === m.id ? 'border-neon-cyan bg-cyan-900/20 shadow-[0_0_15px_rgba(5,217,232,0.2)]' : 'border-gray-700 hover:border-gray-500 cursor-pointer'} ${!isHost && m.active ? 'pointer-events-none' : ''}`}
-                                    >
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <Icon name={m.icon} className={room.currentMode === m.id ? 'text-neon-cyan' : 'text-gray-400'} />
-                                            <h3 className="font-bold text-lg">{m.name}</h3>
-                                        </div>
+                                    <div key={m.id} onClick={() => m.active && isHost && getRoomRef(room.id).update({ currentMode: m.id })} className={`p-5 rounded-2xl border-2 transition-all ${!m.active ? 'opacity-50 cursor-not-allowed border-gray-700 bg-gray-800/50' : room.currentMode === m.id ? 'border-neon-cyan bg-cyan-900/20 shadow-[0_0_15px_rgba(5,217,232,0.2)]' : 'border-gray-700 hover:border-gray-500 cursor-pointer'} ${!isHost && m.active ? 'pointer-events-none' : ''}`}>
+                                        <div className="flex items-center gap-3 mb-2"><Icon name={m.icon} className={room.currentMode === m.id ? 'text-neon-cyan' : 'text-gray-400'} /><h3 className="font-bold text-lg">{m.name}</h3></div>
                                         <p className="text-sm text-gray-400 leading-relaxed">{m.desc}</p>
                                     </div>
                                 ))}
                             </div>
 
-                            {(room.currentMode === 'whatsapp' || room.currentMode === 'emoji_go' || room.currentMode === 'chat_chain') && isHost && (
+                            {['whatsapp', 'emoji_go', 'chat_chain', 'chat_soundtrack'].includes(room.currentMode) && isHost && (
                                 <div className="mt-8 p-5 border-2 border-neon-yellow/50 bg-yellow-900/10 rounded-2xl">
                                     <h3 className="font-bold text-neon-yellow mb-2 flex items-center gap-2"><Icon name="UploadCloud" size={20}/> Host: Upload WhatsApp Log</h3>
                                     <p className="text-sm text-gray-300 mb-4 leading-relaxed">Export a WhatsApp chat (Without Media) as a <b>.txt</b> file. Processing is done 100% locally in your browser. Only the generated quiz questions are synced.</p>
@@ -650,27 +510,28 @@
 
                             {isHost && (
                                 <div className="mt-8 p-6 border-2 border-gray-700 bg-dark-surface rounded-2xl">
-                                    <h3 className="font-bold text-white mb-6 flex items-center gap-2"><Icon name="Settings" size={20}/> Time Limits</h3>
-                                    <div className="space-y-6">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h3 className="font-bold text-white flex items-center gap-2"><Icon name="Settings" size={20}/> Time Limits</h3>
+                                        <label className="flex items-center cursor-pointer">
+                                            <div className="relative">
+                                                <input type="checkbox" className="sr-only" checked={maciMode} onChange={e=>setMaciMode(e.target.checked)} />
+                                                <div className="block bg-gray-600 w-14 h-8 rounded-full"></div>
+                                                <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition transform ${maciMode ? 'translate-x-6 bg-neon-pink' : ''}`}></div>
+                                            </div>
+                                            <div className="ml-3 text-white font-bold text-sm">Maci Mode <span className="text-gray-400 font-normal hidden sm:inline">(Infinite Time)</span></div>
+                                        </label>
+                                    </div>
+                                    <div className={`space-y-6 transition-opacity ${maciMode ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
                                         <div>
-                                            <label className="flex justify-between text-sm font-bold text-gray-400 mb-2">
-                                                <span>Quiz Rounds <span className="font-normal text-xs ml-1">(WhatsApp/Emoji)</span></span>
-                                                <span className="text-neon-cyan">{quizTime}s</span>
-                                            </label>
+                                            <label className="flex justify-between text-sm font-bold text-gray-400 mb-2"><span>Quiz Rounds <span className="font-normal text-xs ml-1">(WhatsApp/Emoji)</span></span><span className="text-neon-cyan">{quizTime}s</span></label>
                                             <input type="range" min="10" max="60" step="5" value={quizTime} onChange={e=>setQuizTime(Number(e.target.value))} className="text-neon-cyan" />
                                         </div>
                                         <div>
-                                            <label className="flex justify-between text-sm font-bold text-gray-400 mb-2">
-                                                <span>Submit Phase <span className="font-normal text-xs ml-1">(Songs/Prompts/Emojis)</span></span>
-                                                <span className="text-neon-pink">{submitTime}s</span>
-                                            </label>
+                                            <label className="flex justify-between text-sm font-bold text-gray-400 mb-2"><span>Submit Phase <span className="font-normal text-xs ml-1">(Songs/Prompts/Emojis)</span></span><span className="text-neon-pink">{submitTime}s</span></label>
                                             <input type="range" min="10" max="120" step="10" value={submitTime} onChange={e=>setSubmitTime(Number(e.target.value))} className="text-neon-pink" />
                                         </div>
                                         <div>
-                                            <label className="flex justify-between text-sm font-bold text-gray-400 mb-2">
-                                                <span>Guess Phase <span className="font-normal text-xs ml-1">(Playlists/Chains)</span></span>
-                                                <span className="text-neon-yellow">{guessTime}s</span>
-                                            </label>
+                                            <label className="flex justify-between text-sm font-bold text-gray-400 mb-2"><span>Guess Phase <span className="font-normal text-xs ml-1">(Playlists/Chains)</span></span><span className="text-neon-yellow">{guessTime}s</span></label>
                                             <input type="range" min="10" max="120" step="10" value={guessTime} onChange={e=>setGuessTime(Number(e.target.value))} className="text-neon-yellow" />
                                         </div>
                                     </div>
@@ -688,9 +549,7 @@
                                 {players.map(([id, p]) => (
                                     <div key={id} className="flex items-center justify-between bg-dark-surface p-4 rounded-xl border border-gray-700/50 shadow-sm">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-neon-pink to-neon-yellow flex items-center justify-center font-bold text-black text-lg shadow-inner">
-                                                {p.name.charAt(0).toUpperCase()}
-                                            </div>
+                                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-neon-pink to-neon-yellow flex items-center justify-center font-bold text-black text-lg shadow-inner">{p.name.charAt(0).toUpperCase()}</div>
                                             <span className="font-bold text-lg">{p.name} {id === room.host && '👑'}</span>
                                         </div>
                                         {p.ready ? <span className="text-neon-cyan text-xs font-black tracking-wider bg-cyan-900/30 px-2 py-1 rounded">READY</span> : <span className="text-gray-500 text-xs font-bold tracking-wider">WAITING</span>}
@@ -699,22 +558,14 @@
                             </div>
                             
                             {!isHost ? (
-                                <button 
-                                    onClick={toggleReady}
-                                    className={`w-full py-4 rounded-2xl font-bold text-xl transition-all active:scale-95 shadow-lg ${room.players[user.uid]?.ready ? 'bg-gray-700 text-white shadow-none' : 'bg-neon-cyan text-black hover:bg-cyan-400 shadow-neon-cyan/20'}`}
-                                >
+                                <button onClick={() => getRoomRef(room.id).update({ [`players.${user.uid}.ready`]: !room.players[user.uid]?.ready })} className={`w-full py-4 rounded-2xl font-bold text-xl transition-all active:scale-95 shadow-lg ${room.players[user.uid]?.ready ? 'bg-gray-700 text-white shadow-none' : 'bg-neon-cyan text-black hover:bg-cyan-400 shadow-neon-cyan/20'}`}>
                                     {room.players[user.uid]?.ready ? 'Unready' : 'Ready Up!'}
                                 </button>
                             ) : (
-                                <button 
-                                    onClick={startGame}
-                                    disabled={players.length < 2}
-                                    className="w-full py-4 rounded-2xl font-bold text-xl bg-neon-pink text-white hover:bg-pink-500 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 shadow-lg shadow-neon-pink/20"
-                                >
+                                <button onClick={startGame} disabled={players.length < 2} className="w-full py-4 rounded-2xl font-bold text-xl bg-neon-pink text-white hover:bg-pink-500 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 shadow-lg shadow-neon-pink/20">
                                     Start Game
                                 </button>
                             )}
-                            {isHost && players.length < 2 && <p className="text-center text-xs text-red-400 mt-3 font-medium">Requires at least 2 players to start.</p>}
                         </div>
                     </div>
                 </div>
@@ -728,10 +579,10 @@
             if (room.currentMode === 'emoji_go') return <QuizGame room={room} user={user} onLeave={onLeave} isEmoji={true} />;
             if (room.currentMode === 'playlist_ring') return <PlaylistRingGame room={room} user={user} onLeave={onLeave} />;
             if (room.currentMode === 'chat_chain') return <ChatChainGame room={room} user={user} onLeave={onLeave} />;
+            if (room.currentMode === 'chat_soundtrack') return <ChatSoundtrackGame room={room} user={user} onLeave={onLeave} />;
             return <div>Unknown mode</div>;
         };
 
-        // --- Common Component: Results Screen ---
         const ResultsScreen = ({ room }) => {
             const sortedPlayers = Object.entries(room.players).sort((a,b) => b[1].score - a[1].score);
             return (
@@ -741,10 +592,7 @@
                         <div className="space-y-4 mb-8">
                             {sortedPlayers.map(([pId, p], idx) => (
                                 <div key={pId} className={`flex items-center justify-between p-5 rounded-2xl border ${idx === 0 ? 'bg-yellow-900/20 border-neon-yellow shadow-[0_0_15px_rgba(255,195,0,0.2)]' : 'bg-dark-surface border-gray-700'}`}>
-                                    <div className="flex items-center gap-4">
-                                        <span className={`text-3xl font-black ${idx === 0 ? 'text-neon-yellow' : 'text-gray-500'}`}>#{idx + 1}</span>
-                                        <span className="font-bold text-xl">{p.name}</span>
-                                    </div>
+                                    <div className="flex items-center gap-4"><span className={`text-3xl font-black ${idx === 0 ? 'text-neon-yellow' : 'text-gray-500'}`}>#{idx + 1}</span><span className="font-bold text-xl">{p.name}</span></div>
                                     <span className={`font-mono font-bold text-2xl ${idx===0 ? 'text-neon-yellow' : 'text-neon-cyan'}`}>{p.score}</span>
                                 </div>
                             ))}
@@ -756,16 +604,14 @@
         };
 
         // --- Mode 1: Song King ---
-        const SongKingGame = ({ room, user, onLeave }) => {
+        const SongKingGame = ({ room, user }) => {
             const isHost = room.host === user.uid;
             const phase = room.gameData?.phase || 'SUBMIT';
-            
-            const submitTime = room.gameData?.settings?.submitTime || 60;
             const guessTime = room.gameData?.settings?.guessTime || 60;
-
+            const maciMode = room.gameData?.settings?.maciMode;
+            
             const [search, setSearch] = React.useState('');
             const [results, setResults] = React.useState([]);
-            const [loading, setLoading] = React.useState(false);
             const [selectedSong, setSelectedSong] = React.useState(null);
             const [myGuesses, setMyGuesses] = React.useState({});
 
@@ -773,70 +619,46 @@
                 if (!isHost) return;
                 const interval = setInterval(() => {
                     if (!room.gameData || room.gameData.transitioning) return;
-                    
-                    const currentPhase = room.gameData.phase;
-                    const deadline = room.gameData.deadline || 0;
-                    const timeUp = deadline > 0 && Date.now() >= deadline;
-
-                    if (currentPhase === 'SUBMIT') {
-                        const allSubmitted = Object.keys(room.gameData.songs || {}).length === Object.keys(room.players).length;
-                        if (allSubmitted || timeUp) {
+                    const timeUp = !maciMode && room.gameData.deadline > 0 && Date.now() >= room.gameData.deadline;
+                    if (room.gameData.phase === 'SUBMIT') {
+                        const allSub = Object.keys(room.gameData.songs || {}).length === Object.keys(room.players).length;
+                        if (allSub || timeUp) {
                             getRoomRef(room.id).update({ 'gameData.transitioning': true });
-                            setTimeout(() => {
-                                getRoomRef(room.id).update({
-                                    'gameData.phase': 'GUESSING',
-                                    'gameData.deadline': Date.now() + (guessTime * 1000),
-                                    'gameData.transitioning': false
-                                });
-                            }, 1500);
+                            setTimeout(() => getRoomRef(room.id).update({ 'gameData.phase': 'GUESSING', 'gameData.deadline': Date.now() + (guessTime * 1000), 'gameData.transitioning': false }), 1500);
                         }
-                    } else if (currentPhase === 'GUESSING') {
+                    } else if (room.gameData.phase === 'GUESSING') {
                         const allGuessed = Object.keys(room.gameData.guesses || {}).length === Object.keys(room.players).length;
                         if (allGuessed || timeUp) {
                             getRoomRef(room.id).update({ 'gameData.transitioning': true });
-                            setTimeout(() => revealScores(), 1500);
+                            setTimeout(() => {
+                                let updates = { 'gameData.phase': 'RESULTS', 'gameData.deadline': Date.now() + 15000, 'gameData.transitioning': false };
+                                Object.keys(room.players).forEach(pId => {
+                                    let score = room.players[pId].score || 0;
+                                    Object.entries(room.gameData.guesses?.[pId] || {}).forEach(([own, g]) => { if(own === g) score+=100; });
+                                    updates[`players.${pId}.score`] = score;
+                                });
+                                getRoomRef(room.id).update(updates);
+                            }, 1500);
                         }
-                    } else if (currentPhase === 'RESULTS') {
-                        if (timeUp) {
-                            getRoomRef(room.id).update({ 'gameData.transitioning': true });
-                            setTimeout(() => getRoomRef(room.id).update({ state: 'LOBBY', gameData: {} }), 1000);
-                        }
+                    } else if (room.gameData.phase === 'RESULTS' && timeUp) {
+                        getRoomRef(room.id).update({ 'gameData.transitioning': true });
+                        setTimeout(() => getRoomRef(room.id).update({ state: 'LOBBY', gameData: {} }), 1000);
                     }
                 }, 1000);
                 return () => clearInterval(interval);
-            }, [room, isHost, guessTime]);
+            }, [room, isHost, guessTime, maciMode]);
 
             const searchItunes = async (query) => {
                 if (!query) return;
-                setLoading(true);
                 try {
                     const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=5`);
-                    const data = await res.json();
-                    setResults(data.results);
-                } catch (e) { console.error("Search failed", e); }
-                setLoading(false);
+                    setResults((await res.json()).results);
+                } catch (e) { }
             };
 
             const submitSong = async () => {
                 if (!selectedSong) return;
-                await getRoomRef(room.id).update({
-                    [`gameData.songs.${user.uid}`]: {
-                        id: selectedSong.trackId, title: selectedSong.trackName, artist: selectedSong.artistName, cover: selectedSong.artworkUrl100, preview: selectedSong.previewUrl
-                    }
-                });
-            };
-
-            const revealScores = async () => {
-                let updates = { 'gameData.phase': 'RESULTS', 'gameData.deadline': Date.now() + 15000, 'gameData.transitioning': false };
-                Object.keys(room.players).forEach(pId => {
-                    let score = room.players[pId].score || 0;
-                    const pGuesses = room.gameData.guesses?.[pId] || {};
-                    Object.entries(pGuesses).forEach(([songOwnerId, guessedId]) => {
-                        if (songOwnerId === guessedId) score += 100;
-                    });
-                    updates[`players.${pId}.score`] = score;
-                });
-                await getRoomRef(room.id).update(updates);
+                await getRoomRef(room.id).update({ [`gameData.songs.${user.uid}`]: { id: selectedSong.trackId, title: selectedSong.trackName, artist: selectedSong.artistName, cover: selectedSong.artworkUrl100, preview: selectedSong.previewUrl } });
             };
 
             if (phase === 'SUBMIT') {
@@ -844,47 +666,22 @@
                 return (
                     <div className="flex-1 flex flex-col items-center mt-16 md:mt-0 pb-12">
                         <div className="glass-panel p-8 rounded-3xl w-full max-w-2xl text-center shadow-xl">
-                            <h2 className="text-4xl font-bold mb-3 text-neon-pink tracking-tight">Submit a Song</h2>
-                            <p className="text-gray-400 mb-8 text-lg">Pick a song you think represents you, or one to fool everyone else.</p>
-                            
+                            <h2 className="text-4xl font-bold mb-3 text-neon-pink">Submit a Song</h2>
+                            <p className="text-gray-400 mb-8 text-lg">Pick a song you think represents you.</p>
                             {!hasSubmitted ? (
                                 <>
-                                    <div className="flex flex-col sm:flex-row gap-2 mb-6 bg-dark-bg p-2 rounded-2xl border border-gray-700">
-                                        <input 
-                                            type="text" value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && searchItunes(search)}
-                                            placeholder="Search artist or song..."
-                                            className="flex-1 bg-transparent border-none p-3 text-white focus:outline-none text-lg text-center sm:text-left"
-                                        />
-                                        <button onClick={() => searchItunes(search)} className="bg-neon-cyan text-black px-6 py-3 rounded-xl font-bold hover:bg-cyan-400 transition-colors w-full sm:w-auto">Search</button>
-                                    </div>
-                                    
-                                    {loading && <div className="text-neon-cyan animate-pulse py-4 font-bold">Searching the vault...</div>}
-                                    
+                                    <div className="flex gap-2 mb-6 bg-dark-bg p-2 rounded-2xl border border-gray-700"><input type="text" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==='Enter'&&searchItunes(search)} placeholder="Search..." className="flex-1 bg-transparent p-3 text-white focus:outline-none"/><button onClick={()=>searchItunes(search)} className="bg-neon-cyan text-black px-6 rounded-xl font-bold">Search</button></div>
                                     <div className="space-y-3 mb-8 text-left max-h-72 overflow-y-auto hide-scrollbar">
-                                        {results.map(track => (
-                                            <div key={track.trackId} onClick={() => setSelectedSong(track)} className={`flex items-center gap-4 p-4 rounded-2xl cursor-pointer border-2 transition-all ${selectedSong?.trackId === track.trackId ? 'border-neon-cyan bg-cyan-900/30 scale-[1.02] shadow-lg shadow-cyan-900/20' : 'border-transparent bg-dark-surface hover:bg-gray-800'}`}>
-                                                <img src={track.artworkUrl100} className="w-14 h-14 rounded-xl shadow-md" />
-                                                <div className="flex-1 overflow-hidden">
-                                                    <p className="font-bold truncate text-lg">{track.trackName}</p>
-                                                    <p className="text-sm text-gray-400 truncate">{track.artistName}</p>
-                                                </div>
+                                        {results.map(t => (
+                                            <div key={t.trackId} onClick={()=>setSelectedSong(t)} className={`flex items-center gap-4 p-4 rounded-2xl cursor-pointer border-2 ${selectedSong?.trackId===t.trackId?'border-neon-cyan bg-cyan-900/30':'border-transparent bg-dark-surface'}`}>
+                                                <img src={t.artworkUrl100} className="w-14 h-14 rounded-xl" />
+                                                <div><p className="font-bold">{t.trackName}</p><p className="text-sm text-gray-400">{t.artistName}</p></div>
                                             </div>
                                         ))}
                                     </div>
-
-                                    <button onClick={submitSong} disabled={!selectedSong} className="w-full bg-neon-pink text-white font-bold py-4 rounded-xl disabled:opacity-50 text-xl transition-transform active:scale-95 shadow-lg shadow-pink-900/50">Lock In Selection</button>
+                                    <button onClick={submitSong} disabled={!selectedSong} className="w-full bg-neon-pink text-white font-bold py-4 rounded-xl disabled:opacity-50 text-xl">Lock In</button>
                                 </>
-                            ) : (
-                                <div className="py-16">
-                                    <h3 className="text-3xl font-bold mb-4 text-white">Song Locked! 🔒</h3>
-                                    <p className="text-gray-400 text-lg mb-8">Waiting for others or the timer...</p>
-                                    <div className="flex justify-center gap-3">
-                                        {Object.keys(room.players).map(pid => (
-                                            <div key={pid} className={`w-4 h-4 rounded-full transition-all duration-500 ${room.gameData?.songs?.[pid] ? 'bg-neon-cyan shadow-[0_0_10px_#05d9e8]' : 'bg-gray-700'}`}></div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+                            ) : (<div className="py-16"><h3 className="text-3xl font-bold mb-4">Locked! 🔒</h3><p className="text-gray-400">Waiting for everyone else...</p></div>)}
                         </div>
                     </div>
                 );
@@ -893,151 +690,82 @@
             if (phase === 'GUESSING') {
                 const songs = Object.entries(room.gameData.songs || {});
                 const hasGuessed = !!room.gameData?.guesses?.[user.uid];
-
                 return (
                     <div className="flex-1 flex flex-col h-full mt-16 md:mt-0">
-                        <div className="text-center mb-6">
-                            <h2 className="text-4xl font-black text-neon-yellow mb-2 tracking-tight">Who picked what?</h2>
-                            <p className="text-gray-400 text-lg">Match the players to the tunes.</p>
-                        </div>
-
+                        <div className="text-center mb-6"><h2 className="text-4xl font-black text-neon-yellow mb-2">Who picked what?</h2></div>
                         {!hasGuessed ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 flex-1 overflow-y-auto hide-scrollbar pb-32 px-2">
                                 {songs.map(([ownerId, song]) => (
-                                    <div key={ownerId} className="glass-panel p-5 rounded-2xl flex items-center gap-5 border border-gray-700/50 hover:border-neon-cyan/50 transition-colors">
+                                    <div key={ownerId} className="glass-panel p-5 rounded-2xl flex items-center gap-5 border border-gray-700/50">
                                         <div className="relative group shrink-0">
                                             <img src={song.cover} className="w-24 h-24 rounded-xl shadow-lg" />
-                                            {song.preview && (
-                                                <button 
-                                                    className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-xl"
-                                                    onClick={() => { const a = new Audio(song.preview); a.volume = 0.5; a.play(); }}
-                                                >
-                                                    <Icon name="Play" className="text-white" size={32} />
-                                                </button>
-                                            )}
+                                            {song.preview && (<button className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 rounded-xl" onClick={() => { const a = new Audio(song.preview); a.volume=0.5; a.play(); }}><Icon name="Play" className="text-white" size={32}/></button>)}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <p className="font-bold truncate text-xl mb-1">{song.title}</p>
-                                            <p className="text-sm text-gray-400 truncate mb-4">{song.artist}</p>
-                                            
-                                            <select 
-                                                className="w-full bg-dark-surface border-2 border-gray-600 rounded-lg p-3 text-white focus:border-neon-cyan focus:outline-none font-bold"
-                                                value={myGuesses[ownerId] || ''}
-                                                onChange={(e) => setMyGuesses(prev => ({...prev, [ownerId]: e.target.value}))}
-                                            >
+                                            <select className="w-full bg-dark-surface border-2 border-gray-600 rounded-lg p-3 mt-2 font-bold" value={myGuesses[ownerId]||''} onChange={e=>setMyGuesses(prev=>({...prev, [ownerId]: e.target.value}))}>
                                                 <option value="" disabled>Select Player...</option>
-                                                {Object.entries(room.players).map(([pId, p]) => (
-                                                    <option key={pId} value={pId}>{p.name}</option>
-                                                ))}
+                                                {Object.entries(room.players).map(([pId, p]) => <option key={pId} value={pId}>{p.name}</option>)}
                                             </select>
                                         </div>
                                     </div>
                                 ))}
                             </div>
-                        ) : (
-                            <div className="flex-1 flex items-center justify-center pb-20">
-                                <div className="text-center glass-panel p-12 rounded-3xl">
-                                    <h3 className="text-3xl font-bold mb-4">Guesses Locked! 🕵️</h3>
-                                    <p className="text-gray-400 mb-8 text-lg">Waiting for others or the timer...</p>
-                                    <div className="flex justify-center gap-3 mb-8">
-                                        {Object.keys(room.players).map(pid => (
-                                            <div key={pid} className={`w-4 h-4 rounded-full transition-all duration-500 ${room.gameData?.guesses?.[pid] ? 'bg-neon-pink shadow-[0_0_10px_#ff2a6d]' : 'bg-gray-700'}`}></div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {!hasGuessed && (
-                            <div className="fixed bottom-6 left-0 w-full flex justify-center px-4 pointer-events-none z-50">
-                                <button 
-                                    onClick={() => getRoomRef(room.id).update({[`gameData.guesses.${user.uid}`]: myGuesses})}
-                                    disabled={Object.keys(myGuesses).length !== songs.length}
-                                    className="w-full max-w-lg bg-neon-pink text-white font-bold py-4 rounded-2xl shadow-[0_10px_40px_rgba(255,42,109,0.3)] disabled:opacity-0 disabled:-translate-y-4 transition-all duration-300 pointer-events-auto text-xl active:scale-95 hover:bg-pink-500"
-                                >
-                                    Submit Final Guesses
-                                </button>
-                            </div>
-                        )}
+                        ) : (<div className="flex-1 flex items-center justify-center pb-20"><div className="glass-panel p-12 rounded-3xl"><h3 className="text-3xl font-bold mb-4">Guesses Locked!</h3></div></div>)}
+                        {!hasGuessed && (<div className="fixed bottom-6 left-0 w-full flex justify-center px-4 z-50"><button onClick={()=>getRoomRef(room.id).update({[`gameData.guesses.${user.uid}`]: myGuesses})} disabled={Object.keys(myGuesses).length!==songs.length} className="w-full max-w-lg bg-neon-pink text-white font-bold py-4 rounded-2xl disabled:opacity-0 text-xl shadow-[0_10px_40px_rgba(255,42,109,0.3)]">Submit Final Guesses</button></div>)}
                     </div>
                 );
             }
-
             if (phase === 'RESULTS') return <ResultsScreen room={room} />;
             return null;
         };
 
-        // --- Mode 2 & 4: Whatsapp / Emoji Quiz Game ---
-        const QuizGame = ({ room, user, onLeave, isEmoji }) => {
+        // --- Mode 2 & 4: Quiz Games ---
+        const QuizGame = ({ room, user, isEmoji }) => {
             const isHost = room.host === user.uid;
             const qIndex = room.gameData.currentQIndex || 0;
             const questions = room.gameData.questions || [];
             const currentQ = questions[qIndex];
             const phase = room.gameData.phase;
-            
             const quizTime = room.gameData?.settings?.quizTime || 20;
-
+            const maciMode = room.gameData?.settings?.maciMode;
             const hasAnswered = !!room.gameData?.answers?.[qIndex]?.[user.uid];
 
             React.useEffect(() => {
                 if (!isHost) return;
                 const interval = setInterval(() => {
                     if (!room.gameData || room.gameData.transitioning) return;
-                    
-                    const deadline = room.gameData.deadline || 0;
-                    const timeUp = deadline > 0 && Date.now() >= deadline;
-                    const cIdx = room.gameData.currentQIndex || 0;
-
+                    const timeUp = !maciMode && room.gameData.deadline > 0 && Date.now() >= room.gameData.deadline;
                     if (room.gameData.phase === 'QUESTION') {
-                        const allAnswered = Object.keys(room.gameData.answers?.[cIdx] || {}).length === Object.keys(room.players).length;
-                        if (allAnswered || timeUp) {
+                        const allAns = Object.keys(room.gameData.answers?.[qIndex] || {}).length === Object.keys(room.players).length;
+                        if (allAns || timeUp) {
                             getRoomRef(room.id).update({ 'gameData.transitioning': true });
                             setTimeout(() => {
-                                let updates = {
-                                    'gameData.phase': 'REVEAL',
-                                    'gameData.deadline': Date.now() + 10000,
-                                    'gameData.transitioning': false
-                                };
-                                const answers = room.gameData.answers?.[cIdx] || {};
-                                const curQ = room.gameData.questions[cIdx];
-                                Object.entries(answers).forEach(([pId, ans]) => {
-                                    if (ans === curQ.correctAnswer) {
-                                        updates[`players.${pId}.score`] = (room.players[pId].score || 0) + 100;
-                                    }
+                                let updates = { 'gameData.phase': 'REVEAL', 'gameData.deadline': Date.now() + 10000, 'gameData.transitioning': false };
+                                Object.entries(room.gameData.answers?.[qIndex] || {}).forEach(([pId, ans]) => {
+                                    if (ans === currentQ.correctAnswer) updates[`players.${pId}.score`] = (room.players[pId].score || 0) + 100;
                                 });
                                 getRoomRef(room.id).update(updates);
                             }, 1000);
                         }
-                    } else if (room.gameData.phase === 'REVEAL') {
-                        if (timeUp) {
-                            getRoomRef(room.id).update({ 'gameData.transitioning': true });
-                            setTimeout(() => {
-                                let updates = {};
-                                if (cIdx + 1 < room.gameData.questions.length) {
-                                    updates['gameData.currentQIndex'] = cIdx + 1;
-                                    updates['gameData.phase'] = 'QUESTION';
-                                    updates['gameData.deadline'] = Date.now() + (quizTime * 1000);
-                                } else {
-                                    updates['gameData.phase'] = 'RESULTS';
-                                    updates['gameData.deadline'] = Date.now() + 45000;
-                                }
-                                updates['gameData.transitioning'] = false;
-                                getRoomRef(room.id).update(updates);
-                            }, 1000);
-                        }
-                    } else if (room.gameData.phase === 'RESULTS') {
-                        if (timeUp) {
-                            getRoomRef(room.id).update({ 'gameData.transitioning': true });
-                            setTimeout(() => getRoomRef(room.id).update({ state: 'LOBBY', gameData: {} }), 1000);
-                        }
+                    } else if (room.gameData.phase === 'REVEAL' && (timeUp || maciMode)) { // Even in maciMode, reveal auto-advances eventually or host clicks
+                        getRoomRef(room.id).update({ 'gameData.transitioning': true });
+                        setTimeout(() => {
+                            let updates = { 'gameData.transitioning': false };
+                            if (qIndex + 1 < questions.length) {
+                                updates['gameData.currentQIndex'] = qIndex + 1; updates['gameData.phase'] = 'QUESTION'; updates['gameData.deadline'] = Date.now() + (quizTime * 1000);
+                            } else {
+                                updates['gameData.phase'] = 'RESULTS'; updates['gameData.deadline'] = Date.now() + 45000;
+                            }
+                            getRoomRef(room.id).update(updates);
+                        }, maciMode ? 8000 : 1000);
+                    } else if (room.gameData.phase === 'RESULTS' && (!maciMode && timeUp)) {
+                        getRoomRef(room.id).update({ 'gameData.transitioning': true });
+                        setTimeout(() => getRoomRef(room.id).update({ state: 'LOBBY', gameData: {} }), 1000);
                     }
                 }, 1000);
                 return () => clearInterval(interval);
-            }, [room, isHost, quizTime]);
-
-            const submitAnswer = async (answer) => {
-                await getRoomRef(room.id).update({ [`gameData.answers.${qIndex}.${user.uid}`]: answer });
-            };
+            }, [room, isHost, quizTime, maciMode]);
 
             if (!currentQ) return <div className="text-center mt-20 text-xl font-bold animate-pulse">Loading Question...</div>;
 
@@ -1045,62 +773,23 @@
                 return (
                     <div className="flex-1 flex flex-col items-center pt-20 md:pt-16 pb-12 overflow-y-auto hide-scrollbar">
                         <div className="w-full max-w-3xl">
-                            <div className="flex justify-between items-end mb-6 px-2">
-                                <div>
-                                    <span className="text-neon-pink font-black text-xl uppercase tracking-widest block mb-1">Round {qIndex + 1}/{questions.length}</span>
-                                    <span className="text-gray-400 font-medium">
-                                        {isEmoji ? 'Emoji Habits' : (currentQ.type === 'who_said' ? 'Who sent this message?' : 'Fill in the blank context')}
-                                    </span>
-                                </div>
-                            </div>
-
+                            <div className="flex justify-between items-end mb-6 px-2"><div><span className="text-neon-pink font-black text-xl uppercase tracking-widest block mb-1">Round {qIndex + 1}/{questions.length}</span></div></div>
                             <div className={`glass-panel p-8 md:p-12 rounded-3xl mb-8 shadow-2xl border-l-8 ${isEmoji ? 'border-neon-yellow' : 'border-neon-cyan'} relative overflow-hidden`}>
-                                <div className="absolute -right-10 -bottom-10 opacity-5 pointer-events-none">
-                                    <Icon name={isEmoji ? 'Smile' : 'MessageCircle'} size={200} />
-                                </div>
                                 <div className="relative z-10">
                                     {isEmoji ? (
-                                        <div className="text-center">
-                                            <p className="text-gray-400 uppercase tracking-widest font-bold mb-4">Who uses this emoji the most?</p>
-                                            <p className="text-8xl md:text-[120px] filter drop-shadow-lg animate-bounce-slow">{currentQ.emoji}</p>
-                                        </div>
+                                        <div className="text-center"><p className="text-gray-400 uppercase tracking-widest font-bold mb-4">Who uses this emoji the most?</p><p className="text-8xl md:text-[120px] filter drop-shadow-lg animate-bounce-slow">{currentQ.emoji}</p></div>
                                     ) : currentQ.type === 'who_said' ? (
                                         <p className="text-3xl md:text-4xl font-medium leading-relaxed italic text-white">"{currentQ.text.replace(/"/g, '')}"</p>
                                     ) : (
-                                        <div className="space-y-4">
-                                            {currentQ.context.split('\n\n').map((line, i) => (
-                                                <div key={i} className={`p-4 rounded-2xl ${i === 1 ? 'bg-yellow-900/30 border border-neon-yellow/50' : 'bg-dark-surface'}`}>
-                                                    <p className={`text-xl md:text-2xl ${i === 1 ? 'font-bold text-neon-yellow' : 'text-gray-300'}`}>{line}</p>
-                                                </div>
-                                            ))}
-                                        </div>
+                                        <div className="space-y-4">{currentQ.context.split('\n\n').map((line, i) => <div key={i} className={`p-4 rounded-2xl ${i === 1 ? 'bg-yellow-900/30 border border-neon-yellow/50' : 'bg-dark-surface'}`}><p className={`text-xl md:text-2xl ${i === 1 ? 'font-bold text-neon-yellow' : 'text-gray-300'}`}>{line}</p></div>)}</div>
                                     )}
                                 </div>
                             </div>
-
                             {!hasAnswered ? (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    {currentQ.options.map((opt, i) => (
-                                        <button 
-                                            key={i}
-                                            onClick={() => submitAnswer(opt)}
-                                            className={`bg-dark-surface hover:bg-gray-800 border-2 border-gray-700 p-6 rounded-2xl text-left font-bold text-xl transition-all active:scale-95 shadow-md hover:shadow-lg ${isEmoji ? 'hover:border-neon-yellow hover:text-neon-yellow' : 'hover:border-neon-cyan hover:text-neon-cyan'}`}
-                                        >
-                                            {opt}
-                                        </button>
-                                    ))}
+                                    {currentQ.options.map((opt, i) => <button key={i} onClick={()=>getRoomRef(room.id).update({ [`gameData.answers.${qIndex}.${user.uid}`]: opt })} className={`bg-dark-surface hover:bg-gray-800 border-2 border-gray-700 p-6 rounded-2xl text-left font-bold text-xl transition-all active:scale-95 shadow-md hover:shadow-lg ${isEmoji ? 'hover:border-neon-yellow hover:text-neon-yellow' : 'hover:border-neon-cyan hover:text-neon-cyan'}`}>{opt}</button>)}
                                 </div>
-                            ) : (
-                                <div className="text-center p-10 bg-dark-surface rounded-3xl border border-gray-700 shadow-xl">
-                                    <h3 className="text-2xl font-black mb-2 text-white">Answer Locked 🔒</h3>
-                                    <p className="text-gray-400 mb-8 text-lg">Waiting for others or the timer...</p>
-                                    <div className="flex justify-center gap-3 mb-8">
-                                        {Object.keys(room.players).map(pid => (
-                                            <div key={pid} className={`w-4 h-4 rounded-full transition-all duration-500 ${room.gameData?.answers?.[qIndex]?.[pid] ? (isEmoji ? 'bg-neon-yellow shadow-[0_0_10px_#ffc300]' : 'bg-neon-cyan shadow-[0_0_10px_#05d9e8]') : 'bg-gray-700'}`}></div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+                            ) : (<div className="text-center p-10 bg-dark-surface rounded-3xl border border-gray-700 shadow-xl"><h3 className="text-2xl font-black mb-2 text-white">Answer Locked 🔒</h3></div>)}
                         </div>
                     </div>
                 );
@@ -1114,20 +803,17 @@
                             <h2 className="text-3xl font-black text-neon-cyan mb-6">Round {qIndex + 1} Results</h2>
                             <p className="text-gray-400 mb-2 font-bold uppercase tracking-widest text-sm">The correct answer was:</p>
                             <p className="text-4xl md:text-5xl font-bold text-neon-yellow mb-10 bg-yellow-900/20 p-6 rounded-2xl border border-neon-yellow shadow-inner">"{currentQ.correctAnswer}"</p>
-                            
                             <div className="space-y-4 text-left max-w-md mx-auto">
                                 {Object.entries(room.players).map(([pId, p]) => {
                                     const pAns = answers[pId];
                                     const isCorrect = pAns === currentQ.correctAnswer;
                                     return (
                                         <div key={pId} className={`p-5 rounded-2xl flex justify-between items-center border-2 ${isCorrect ? 'border-green-500/50 bg-green-900/20 shadow-[0_0_15px_rgba(34,197,94,0.2)]' : 'border-red-500/30 bg-red-900/20'}`}>
-                                            <span className="font-bold text-lg text-white">{p.name}</span>
-                                            <span className={`italic font-medium ${isCorrect ? 'text-green-400' : 'text-red-400'}`}>{pAns ? `"${pAns}"` : 'Skipped'}</span>
+                                            <span className="font-bold text-lg text-white">{p.name}</span><span className={`italic font-medium ${isCorrect ? 'text-green-400' : 'text-red-400'}`}>{pAns ? `"${pAns}"` : 'Skipped'}</span>
                                         </div>
                                     );
                                 })}
                             </div>
-                            <p className="mt-10 text-gray-500 animate-pulse text-sm font-bold tracking-widest">NEXT ROUND STARTING SHORTLY...</p>
                         </div>
                     </div>
                 );
@@ -1138,48 +824,17 @@
                 return (
                     <div className="flex-1 flex flex-col items-center pt-16 pb-12 overflow-y-auto hide-scrollbar">
                         <div className="w-full max-w-4xl glass-panel p-8 rounded-3xl">
-                            <h2 className="text-5xl font-black mb-10 text-center text-transparent bg-clip-text bg-gradient-to-r from-neon-pink to-neon-yellow pb-2">Final Standings</h2>
-                            
+                            <div className="flex justify-between items-center mb-10">
+                                <h2 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-neon-pink to-neon-yellow">Final Standings</h2>
+                                {isHost && <button onClick={() => getRoomRef(room.id).update({ state: 'LOBBY', gameData: {} })} className="bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded-xl font-bold text-white shadow-md">Lobby</button>}
+                            </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-14">
                                 {sortedPlayers.map(([pId, p], idx) => (
                                     <div key={pId} className={`flex items-center justify-between p-5 rounded-2xl border ${idx === 0 ? 'bg-yellow-900/20 border-neon-yellow shadow-[0_0_15px_rgba(255,195,0,0.2)]' : 'bg-dark-surface border-gray-700'}`}>
-                                        <div className="flex items-center gap-3">
-                                            <span className={`text-2xl font-black ${idx === 0 ? 'text-neon-yellow' : 'text-gray-500'}`}>#{idx + 1}</span>
-                                            <span className="font-bold text-lg text-white truncate max-w-[100px]">{p.name}</span>
-                                        </div>
+                                        <div className="flex items-center gap-3"><span className={`text-2xl font-black ${idx === 0 ? 'text-neon-yellow' : 'text-gray-500'}`}>#{idx + 1}</span><span className="font-bold text-lg text-white truncate max-w-[100px]">{p.name}</span></div>
                                         <span className={`font-mono font-bold text-xl ${idx===0 ? 'text-neon-yellow' : 'text-neon-cyan'}`}>{p.score}</span>
                                     </div>
                                 ))}
-                            </div>
-
-                            <h3 className="text-2xl font-black mb-6 text-neon-cyan border-b-2 border-gray-700 pb-3">Full Game Recap</h3>
-                            <div className="space-y-6">
-                                {questions.map((q, i) => (
-                                    <div key={i} className="bg-dark-surface p-6 rounded-2xl border border-gray-700/50">
-                                        <p className="text-sm text-neon-pink font-bold uppercase mb-3 tracking-widest">Round {i + 1}</p>
-                                        <p className="text-xl md:text-2xl text-white mb-4 italic">
-                                            {isEmoji ? `Who uses ${q.emoji} the most?` : `"${q.text || q.context.split('\n\n').join(' ')}"`}
-                                        </p>
-                                        <p className="text-lg font-bold text-neon-yellow mb-5 border-l-4 border-neon-yellow pl-3">Answer: {q.correctAnswer}</p>
-                                        
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                                            {Object.entries(room.players).map(([pId, p]) => {
-                                                const pAns = room.gameData.answers?.[i]?.[pId];
-                                                const isCorrect = pAns === q.correctAnswer;
-                                                return (
-                                                    <div key={pId} className={`flex justify-between p-3 rounded-xl border ${isCorrect ? 'border-green-500/30 bg-green-900/20 text-green-400' : 'border-red-500/20 bg-red-900/10 text-red-400'}`}>
-                                                        <span className="font-bold text-white truncate max-w-[100px]">{p.name}</span>
-                                                        <span className="truncate ml-2">{pAns || 'Skipped'}</span>
-                                                    </div>
-                                                )
-                                            })}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                            
-                            <div className="mt-12 text-center">
-                                <p className="text-gray-400 font-bold tracking-widest text-sm animate-pulse">RETURNING TO LOBBY SHORTLY...</p>
                             </div>
                         </div>
                     </div>
@@ -1189,218 +844,155 @@
         };
 
         // --- Mode 3: Playlist Ring ---
-        const PlaylistRingGame = ({ room, user, onLeave }) => {
+        const PlaylistRingGame = ({ room, user }) => {
             const isHost = room.host === user.uid;
             const phase = room.gameData?.phase || 'PROMPT';
-            
-            const submitTime = room.gameData?.settings?.submitTime || 60;
             const guessTime = room.gameData?.settings?.guessTime || 60;
+            const maciMode = room.gameData?.settings?.maciMode;
 
             const [promptInput, setPromptInput] = React.useState('');
             const [search, setSearch] = React.useState('');
             const [results, setResults] = React.useState([]);
-            const [myPlaylist, setMyPlaylist] = React.useState([]);
+            const [myPlaylist, setMyPlaylist] = React.useState(room.gameData?.playlists?.[user.uid] || []);
             const [myGuesses, setMyGuesses] = React.useState({});
 
-            // Host Automation Loop
+            const activeAudioRef = React.useRef(null);
+            const mixTimeoutRef = React.useRef(null);
+
+            React.useEffect(() => {
+                return () => {
+                    if (activeAudioRef.current) activeAudioRef.current.pause();
+                    if (mixTimeoutRef.current) clearTimeout(mixTimeoutRef.current);
+                }
+            }, []);
+
             React.useEffect(() => {
                 if (!isHost) return;
                 const interval = setInterval(() => {
                     if (!room.gameData || room.gameData.transitioning) return;
-                    
-                    const currentPhase = room.gameData.phase;
-                    const deadline = room.gameData.deadline || 0;
-                    const timeUp = deadline > 0 && Date.now() >= deadline;
+                    const timeUp = !maciMode && room.gameData.deadline > 0 && Date.now() >= room.gameData.deadline;
 
-                    if (currentPhase === 'PROMPT') {
-                        const allPromptsSubmitted = Object.keys(room.gameData.prompts || {}).length === Object.keys(room.players).length;
-                        if (allPromptsSubmitted || timeUp) {
+                    if (room.gameData.phase === 'PROMPT') {
+                        if (Object.keys(room.gameData.prompts || {}).length === Object.keys(room.players).length || timeUp) {
                             getRoomRef(room.id).update({ 'gameData.transitioning': true });
                             setTimeout(() => assignAndMoveToBuild(), 1500);
                         }
-                    } else if (currentPhase === 'BUILD') {
-                        const allPlaylistsSubmitted = Object.keys(room.gameData.playlists || {}).length === Object.keys(room.players).length;
-                        if (allPlaylistsSubmitted || timeUp) {
+                    } else if (room.gameData.phase === 'BUILD') {
+                        if (Object.keys(room.gameData.lockedIn || {}).length === Object.keys(room.players).length || timeUp) {
                             getRoomRef(room.id).update({ 'gameData.transitioning': true });
-                            setTimeout(() => {
-                                getRoomRef(room.id).update({
-                                    'gameData.phase': 'GUESS',
-                                    'gameData.deadline': Date.now() + (guessTime * 1000),
-                                    'gameData.transitioning': false
-                                });
-                            }, 1500);
+                            setTimeout(() => getRoomRef(room.id).update({ 'gameData.phase': 'GUESS', 'gameData.deadline': Date.now() + (guessTime * 1000), 'gameData.transitioning': false }), 1500);
                         }
-                    } else if (currentPhase === 'GUESS') {
-                        const allGuessed = Object.keys(room.gameData.guesses || {}).length === Object.keys(room.players).length;
-                        if (allGuessed || timeUp) {
+                    } else if (room.gameData.phase === 'GUESS') {
+                        if (Object.keys(room.gameData.guesses || {}).length === Object.keys(room.players).length || timeUp) {
                             getRoomRef(room.id).update({ 'gameData.transitioning': true });
                             setTimeout(() => revealScores(), 1500);
                         }
-                    } else if (currentPhase === 'RESULTS') {
-                        if (timeUp) {
-                            getRoomRef(room.id).update({ 'gameData.transitioning': true });
-                            setTimeout(() => getRoomRef(room.id).update({ state: 'LOBBY', gameData: {} }), 1000);
-                        }
+                    } else if (room.gameData.phase === 'RESULTS' && (!maciMode && timeUp)) {
+                        getRoomRef(room.id).update({ 'gameData.transitioning': true });
+                        setTimeout(() => getRoomRef(room.id).update({ state: 'LOBBY', gameData: {} }), 1000);
                     }
                 }, 1000);
                 return () => clearInterval(interval);
-            }, [room, isHost, guessTime]);
-
-            const submitPrompt = async () => {
-                if (!promptInput.trim()) return;
-                await getRoomRef(room.id).update({ [`gameData.prompts.${user.uid}`]: promptInput.trim() });
-            };
+            }, [room, isHost, guessTime, maciMode]);
 
             const assignAndMoveToBuild = async () => {
                 const uids = Object.keys(room.players);
-                const assignments = generateDerangedAssignments(uids);
-                if (!assignments) { 
-                    alert("Shuffle failed. Returning to lobby."); 
-                    getRoomRef(room.id).update({ state: 'LOBBY', gameData: {} });
-                    return; 
-                }
-                
-                const currentPrompts = room.gameData.prompts || {};
-                const filledPrompts = { ...currentPrompts };
-                uids.forEach(pid => {
-                    if (!filledPrompts[pid]) filledPrompts[pid] = "A mysterious, silent vibe...";
-                });
-
-                await getRoomRef(room.id).update({ 
-                    'gameData.prompts': filledPrompts,
-                    'gameData.assignments': assignments, 
-                    'gameData.phase': 'BUILD',
-                    'gameData.deadline': Date.now() + ((guessTime + 30) * 1000), // extra 30s to build
-                    'gameData.transitioning': false
-                });
-            };
-
-            const searchItunes = async (query) => {
-                if (!query) return;
-                try {
-                    const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=8`);
-                    const data = await res.json();
-                    setResults(data.results);
-                } catch (e) { console.error("Search failed", e); }
-            };
-
-            const addSong = (track) => {
-                if (!myPlaylist.find(s => s.id === track.trackId)) {
-                    setMyPlaylist([...myPlaylist, { id: track.trackId, title: track.trackName, artist: track.artistName, cover: track.artworkUrl100 }]);
-                }
-            };
-            const removeSong = (id) => setMyPlaylist(myPlaylist.filter(s => s.id !== id));
-
-            const submitPlaylist = async () => {
-                if (myPlaylist.length < 3) return;
-                await getRoomRef(room.id).update({ [`gameData.playlists.${user.uid}`]: myPlaylist });
+                const assignments = generateDerangedAssignments(uids) || uids.reduce((acc, uid, i) => ({...acc, [uid]: uids[(i+1)%uids.length]}), {});
+                const filledPrompts = { ...(room.gameData.prompts || {}) };
+                uids.forEach(pid => { if (!filledPrompts[pid]) filledPrompts[pid] = "A mysterious vibe..."; });
+                await getRoomRef(room.id).update({ 'gameData.prompts': filledPrompts, 'gameData.assignments': assignments, 'gameData.phase': 'BUILD', 'gameData.deadline': Date.now() + ((guessTime + 30) * 1000), 'gameData.transitioning': false });
             };
 
             const revealScores = async () => {
                 let updates = { 'gameData.phase': 'RESULTS', 'gameData.deadline': Date.now() + 15000, 'gameData.transitioning': false };
                 Object.keys(room.players).forEach(pId => {
                     let score = room.players[pId].score || 0;
-                    const pGuesses = room.gameData.guesses?.[pId] || {};
-                    Object.entries(pGuesses).forEach(([playlistBuilderUid, guessedPromptCreatorUid]) => {
-                        const actualPromptCreatorUid = room.gameData.assignments[playlistBuilderUid];
-                        if (guessedPromptCreatorUid === actualPromptCreatorUid) score += 100;
-                    });
+                    Object.entries(room.gameData.guesses?.[pId] || {}).forEach(([bUid, gUid]) => { if (gUid === room.gameData.assignments[bUid]) score += 100; });
                     updates[`players.${pId}.score`] = score;
                 });
                 await getRoomRef(room.id).update(updates);
             };
 
+            const playMix = (songs) => {
+                if (activeAudioRef.current) activeAudioRef.current.pause();
+                if (mixTimeoutRef.current) clearTimeout(mixTimeoutRef.current);
+
+                let i = 0;
+                const playNext = () => {
+                    if (i >= songs.length) return;
+                    const preview = songs[i].preview;
+                    if (preview) {
+                        const audio = new Audio(preview);
+                        audio.volume = 0.5;
+                        audio.play();
+                        activeAudioRef.current = audio;
+                        mixTimeoutRef.current = setTimeout(() => { audio.pause(); i++; playNext(); }, 5000);
+                    } else { i++; playNext(); }
+                };
+                playNext();
+            };
+
+            const syncPlaylist = async (newList) => {
+                setMyPlaylist(newList);
+                await getRoomRef(room.id).update({ [`gameData.playlists.${user.uid}`]: newList });
+            };
+
             if (phase === 'PROMPT') {
-                const hasSubmitted = !!room.gameData?.prompts?.[user.uid];
                 return (
                     <div className="flex-1 flex flex-col items-center justify-center mt-16 md:mt-0 pb-12">
                         <div className="glass-panel p-8 rounded-3xl w-full max-w-lg text-center shadow-2xl">
                             <h2 className="text-4xl font-black mb-4 text-neon-yellow">Set the Vibe</h2>
-                            <p className="text-gray-400 mb-8 text-lg">Write a prompt or theme. Someone else will have to build a playlist for it.</p>
-                            
-                            {!hasSubmitted ? (
+                            <p className="text-gray-400 mb-8 text-lg">Write a prompt or theme. Someone else will build a playlist for it.</p>
+                            {!room.gameData?.prompts?.[user.uid] ? (
                                 <>
-                                    <textarea 
-                                        value={promptInput} onChange={(e) => setPromptInput(e.target.value)}
-                                        placeholder="e.g., 'Late night drive contemplating life' or 'Boss fight music'"
-                                        className="w-full bg-dark-bg/50 border border-gray-600 rounded-xl p-4 text-white focus:border-neon-yellow focus:outline-none mb-6 h-32 resize-none text-lg"
-                                        maxLength="60"
-                                    />
-                                    <button onClick={submitPrompt} disabled={!promptInput.trim()} className="w-full bg-neon-yellow text-black font-bold py-4 rounded-xl disabled:opacity-50 text-xl hover:bg-yellow-400 transition-colors">Submit Vibe</button>
+                                    <textarea value={promptInput} onChange={e=>setPromptInput(e.target.value)} placeholder="e.g., 'Late night drive contemplating life'" className="w-full bg-dark-bg/50 border border-gray-600 rounded-xl p-4 text-white focus:border-neon-yellow focus:outline-none mb-6 h-32 resize-none text-lg" maxLength="60" />
+                                    <button onClick={()=>getRoomRef(room.id).update({[`gameData.prompts.${user.uid}`]: promptInput.trim()})} disabled={!promptInput.trim()} className="w-full bg-neon-yellow text-black font-bold py-4 rounded-xl disabled:opacity-50 text-xl hover:bg-yellow-400">Submit Vibe</button>
                                 </>
-                            ) : (
-                                <div>
-                                    <h3 className="text-2xl font-bold mb-4">Vibe Submitted!</h3>
-                                    <p className="text-gray-400 mb-8">Waiting for others or the timer...</p>
-                                </div>
-                            )}
+                            ) : (<div><h3 className="text-2xl font-bold mb-4">Vibe Submitted!</h3><p className="text-gray-400 mb-8">Waiting for everyone else...</p></div>)}
                         </div>
                     </div>
                 );
             }
 
             if (phase === 'BUILD') {
-                const targetUid = room.gameData.assignments?.[user.uid];
-                const targetPrompt = room.gameData.prompts?.[targetUid] || "A mysterious vibe...";
-                const hasSubmitted = !!room.gameData?.playlists?.[user.uid];
+                const targetPrompt = room.gameData.prompts?.[room.gameData.assignments?.[user.uid]] || "A mysterious vibe...";
+                if (room.gameData?.lockedIn?.[user.uid]) return <div className="flex-1 flex items-center justify-center"><div className="text-center glass-panel p-12 rounded-3xl"><h3 className="text-3xl font-bold mb-4">Playlist Locked! 💿</h3></div></div>;
 
                 return (
                     <div className="flex-1 flex flex-col h-full overflow-hidden mt-16 md:mt-0 pb-6">
-                        <div className="text-center mb-6 shrink-0">
-                            <p className="text-neon-cyan font-bold uppercase tracking-widest mb-2">Your Assigned Vibe</p>
-                            <h2 className="text-2xl md:text-3xl font-black text-white italic px-4">"{targetPrompt}"</h2>
-                        </div>
-
-                        {!hasSubmitted ? (
-                            <div className="flex-1 flex flex-col md:flex-row gap-6 min-h-0">
-                                {/* Search Col */}
-                                <div className="flex-1 glass-panel p-4 md:p-6 rounded-3xl flex flex-col min-h-[300px] md:min-h-0">
-                                    <div className="flex gap-2 mb-4 bg-dark-bg p-2 rounded-xl border border-gray-700 shrink-0">
-                                        <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && searchItunes(search)} placeholder="Search songs..." className="flex-1 bg-transparent border-none p-2 text-white focus:outline-none"/>
-                                        <button onClick={() => searchItunes(search)} className="bg-gray-700 hover:bg-gray-600 px-4 rounded-lg font-bold">Search</button>
-                                    </div>
-                                    <div className="flex-1 overflow-y-auto hide-scrollbar space-y-2">
-                                        {results.map(track => (
-                                            <div key={track.trackId} className="flex items-center gap-3 p-3 rounded-xl bg-dark-surface border border-gray-700/50 hover:border-gray-500">
-                                                <img src={track.artworkUrl100} className="w-10 h-10 rounded-md" />
-                                                <div className="flex-1 overflow-hidden">
-                                                    <p className="font-bold truncate text-sm">{track.trackName}</p>
-                                                    <p className="text-xs text-gray-400 truncate">{track.artistName}</p>
-                                                </div>
-                                                <button onClick={() => addSong(track)} className="p-2 bg-neon-cyan/20 text-neon-cyan rounded-lg hover:bg-neon-cyan hover:text-black transition-colors"><Icon name="Plus" size={16}/></button>
+                        <div className="text-center mb-6 shrink-0"><p className="text-neon-cyan font-bold uppercase tracking-widest mb-2">Your Assigned Vibe</p><h2 className="text-2xl md:text-3xl font-black text-white italic px-4">"{targetPrompt}"</h2></div>
+                        <div className="flex-1 flex flex-col md:flex-row gap-6 min-h-0">
+                            <div className="flex-1 glass-panel p-4 md:p-6 rounded-3xl flex flex-col min-h-[300px] md:min-h-0">
+                                <div className="flex gap-2 mb-4 bg-dark-bg p-2 rounded-xl border border-gray-700 shrink-0">
+                                    <input type="text" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==='Enter'&&async function(){try{setResults((await(await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(search)}&entity=song&limit=8`)).json()).results)}catch(e){}}()} placeholder="Search songs..." className="flex-1 bg-transparent border-none p-2 text-white focus:outline-none"/>
+                                </div>
+                                <div className="flex-1 overflow-y-auto hide-scrollbar space-y-2">
+                                    {results.map(track => (
+                                        <div key={track.trackId} className="flex items-center gap-3 p-3 rounded-xl bg-dark-surface border border-gray-700/50 hover:border-gray-500">
+                                            <img src={track.artworkUrl100} className="w-10 h-10 rounded-md" />
+                                            <div className="flex-1 overflow-hidden"><p className="font-bold truncate text-sm">{track.trackName}</p><p className="text-xs text-gray-400 truncate">{track.artistName}</p></div>
+                                            <button onClick={()=> { if(!myPlaylist.find(s=>s.id===track.trackId)) syncPlaylist([...myPlaylist, { id: track.trackId, title: track.trackName, artist: track.artistName, cover: track.artworkUrl100, preview: track.previewUrl }]); }} className="p-2 bg-neon-cyan/20 text-neon-cyan rounded-lg hover:bg-neon-cyan hover:text-black"><Icon name="Plus" size={16}/></button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="w-full md:w-1/3 flex flex-col gap-4 shrink-0 md:shrink">
+                                <div className="glass-panel p-6 rounded-3xl flex-1 flex flex-col border-2 border-neon-cyan/30">
+                                    <h3 className="font-bold text-xl mb-4 text-neon-cyan">The Playlist ({myPlaylist.length} songs)</h3>
+                                    <div className="flex-1 space-y-3 overflow-y-auto max-h-[400px] hide-scrollbar pr-2">
+                                        {myPlaylist.map((s, i) => (
+                                            <div key={s.id} className="flex items-center gap-3 bg-dark-bg p-3 rounded-xl border border-neon-cyan/30">
+                                                <span className="text-gray-500 font-bold">{i+1}</span><img src={s.cover} className="w-10 h-10 rounded-md" />
+                                                <div className="flex-1 overflow-hidden"><p className="font-bold truncate text-sm">{s.title}</p></div>
+                                                <button onClick={()=>syncPlaylist(myPlaylist.filter(track=>track.id!==s.id))} className="text-red-400 hover:text-red-300"><Icon name="Trash2" size={18}/></button>
                                             </div>
                                         ))}
                                     </div>
-                                </div>
-                                {/* Playlist Col */}
-                                <div className="w-full md:w-1/3 flex flex-col gap-4 shrink-0 md:shrink">
-                                    <div className="glass-panel p-6 rounded-3xl flex-1 flex flex-col border-2 border-neon-cyan/30">
-                                        <h3 className="font-bold text-xl mb-4 text-neon-cyan">The Playlist ({myPlaylist.length} songs, min 3)</h3>
-                                        <div className="flex-1 space-y-3 overflow-y-auto max-h-[400px] hide-scrollbar pr-2">
-                                            {myPlaylist.map((s, i) => (
-                                                <div key={s.id} className="flex items-center gap-3 bg-dark-bg p-3 rounded-xl border border-neon-cyan/30">
-                                                    <span className="text-gray-500 font-bold">{i+1}</span>
-                                                    <img src={s.cover} className="w-10 h-10 rounded-md" />
-                                                    <div className="flex-1 overflow-hidden">
-                                                        <p className="font-bold truncate text-sm">{s.title}</p>
-                                                    </div>
-                                                    <button onClick={() => removeSong(s.id)} className="text-red-400 hover:text-red-300"><Icon name="Trash2" size={18}/></button>
-                                                </div>
-                                            ))}
-                                            {myPlaylist.length === 0 && <p className="text-gray-500 text-sm text-center mt-10">Add at least 3 songs that fit the vibe.</p>}
-                                        </div>
-                                        <button onClick={submitPlaylist} disabled={myPlaylist.length < 3} className="w-full mt-6 bg-neon-cyan text-black py-4 rounded-xl font-bold text-lg hover:bg-cyan-400 disabled:opacity-30">Lock In Playlist</button>
-                                    </div>
+                                    <button onClick={()=>getRoomRef(room.id).update({ [`gameData.lockedIn.${user.uid}`]: true })} disabled={myPlaylist.length < 3} className="w-full mt-6 bg-neon-cyan text-black py-4 rounded-xl font-bold text-lg hover:bg-cyan-400 disabled:opacity-30">Lock In Playlist</button>
+                                    <p className="text-xs text-gray-500 text-center mt-2">Unlimited songs allowed (min 3).</p>
                                 </div>
                             </div>
-                        ) : (
-                            <div className="flex-1 flex items-center justify-center">
-                                <div className="text-center glass-panel p-12 rounded-3xl">
-                                    <h3 className="text-3xl font-bold mb-4">Playlist Locked! 💿</h3>
-                                    <p className="text-gray-400 mb-8">Waiting for others or the timer...</p>
-                                </div>
-                            </div>
-                        )}
+                        </div>
                     </div>
                 );
             }
@@ -1408,16 +1000,10 @@
             if (phase === 'GUESS') {
                 const playlists = Object.entries(room.gameData.playlists || {});
                 const promptsList = Object.entries(room.gameData.prompts || {});
-                const hasGuessed = !!room.gameData?.guesses?.[user.uid];
-
                 return (
                     <div className="flex-1 flex flex-col h-full pb-20 mt-16 md:mt-0">
-                        <div className="text-center mb-6 shrink-0">
-                            <h2 className="text-3xl font-black text-white mb-2">Whose vibe is this?</h2>
-                            <p className="text-gray-400">Match the curated playlist to the original prompt creator.</p>
-                        </div>
-
-                        {!hasGuessed ? (
+                        <div className="text-center mb-6 shrink-0"><h2 className="text-3xl font-black text-white mb-2">Whose vibe is this?</h2></div>
+                        {!room.gameData?.guesses?.[user.uid] ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 overflow-y-auto hide-scrollbar px-2 pb-10">
                                 {playlists.map(([builderId, songs]) => (
                                     <div key={builderId} className="glass-panel p-6 rounded-3xl flex flex-col gap-4 border border-gray-700/50">
@@ -1425,199 +1011,103 @@
                                             {songs.length > 0 ? songs.map(s => (
                                                 <div key={s.id} className="flex items-center gap-3 bg-dark-surface p-2 rounded-xl border border-gray-700">
                                                     <img src={s.cover} className="w-12 h-12 rounded-md shadow-md"/>
-                                                    <div className="flex-1 overflow-hidden text-left">
-                                                        <p className="font-bold text-sm truncate text-white">{s.title}</p>
-                                                        <p className="text-xs text-gray-400 truncate">{s.artist}</p>
-                                                    </div>
+                                                    <div className="flex-1 overflow-hidden text-left"><p className="font-bold text-sm truncate text-white">{s.title}</p><p className="text-xs text-gray-400 truncate">{s.artist}</p></div>
                                                 </div>
                                             )) : <p className="text-gray-600 font-bold italic py-4 text-center">No playlist submitted</p>}
                                         </div>
-                                        <select 
-                                            className="w-full mt-auto bg-dark-bg border-2 border-gray-600 rounded-xl p-3 text-white focus:border-neon-pink focus:outline-none font-bold"
-                                            value={myGuesses[builderId] || ''}
-                                            onChange={(e) => setMyGuesses(prev => ({...prev, [builderId]: e.target.value}))}
-                                        >
+                                        <button onClick={() => playMix(songs)} className="bg-neon-cyan/20 text-neon-cyan py-2 px-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-neon-cyan hover:text-black transition-colors w-full mt-2"><Icon name="Play" size={16} /> Play Mix (5s snippets)</button>
+                                        <select className="w-full mt-auto bg-dark-bg border-2 border-gray-600 rounded-xl p-3 text-white focus:border-neon-pink focus:outline-none font-bold" value={myGuesses[builderId] || ''} onChange={(e) => setMyGuesses(prev => ({...prev, [builderId]: e.target.value}))}>
                                             <option value="" disabled>Guess the Original Vibe...</option>
-                                            {promptsList.map(([promptOwnerId, promptText]) => (
-                                                <option key={promptOwnerId} value={promptOwnerId}>"{promptText}"</option>
-                                            ))}
+                                            {promptsList.map(([promptOwnerId, promptText]) => <option key={promptOwnerId} value={promptOwnerId}>"{promptText}"</option>)}
                                         </select>
                                     </div>
                                 ))}
                             </div>
-                        ) : (
-                            <div className="flex-1 flex items-center justify-center">
-                                <div className="text-center glass-panel p-12 rounded-3xl">
-                                    <h3 className="text-3xl font-bold mb-4">Guesses Locked!</h3>
-                                    <p className="text-gray-400 mb-8">Ready for the chaos?</p>
-                                </div>
-                            </div>
-                        )}
-
-                        {!hasGuessed && (
-                            <div className="fixed bottom-6 left-0 w-full flex justify-center px-4 pointer-events-none z-50">
-                                <button 
-                                    onClick={() => getRoomRef(room.id).update({[`gameData.guesses.${user.uid}`]: myGuesses})} 
-                                    disabled={Object.keys(myGuesses).length !== playlists.length}
-                                    className="w-full max-w-lg bg-neon-pink text-white font-bold py-4 rounded-2xl shadow-[0_10px_40px_rgba(255,42,109,0.3)] disabled:opacity-0 pointer-events-auto text-xl active:scale-95"
-                                >
-                                    Submit Guesses
-                                </button>
-                            </div>
+                        ) : (<div className="flex-1 flex items-center justify-center"><div className="text-center glass-panel p-12 rounded-3xl"><h3 className="text-3xl font-bold mb-4">Guesses Locked!</h3></div></div>)}
+                        {!room.gameData?.guesses?.[user.uid] && (
+                            <div className="fixed bottom-6 left-0 w-full flex justify-center px-4 pointer-events-none z-50"><button onClick={() => getRoomRef(room.id).update({[`gameData.guesses.${user.uid}`]: myGuesses})} disabled={Object.keys(myGuesses).length !== playlists.length} className="w-full max-w-lg bg-neon-pink text-white font-bold py-4 rounded-2xl disabled:opacity-0 pointer-events-auto text-xl shadow-[0_10px_40px_rgba(255,42,109,0.3)]">Submit Guesses</button></div>
                         )}
                     </div>
                 );
             }
-
             if (phase === 'RESULTS') return <ResultsScreen room={room} />;
-            
             return null;
         };
 
         // --- Mode 5: Chat Chain (WhatsApp Gartic Phone) ---
-        const ChatChainGame = ({ room, user, onLeave }) => {
+        const ChatChainGame = ({ room, user }) => {
             const isHost = room.host === user.uid;
             const phase = room.gameData?.phase || 'ENCODE';
-            
-            const submitTime = room.gameData?.settings?.submitTime || 60;
             const guessTime = room.gameData?.settings?.guessTime || 60;
-
+            const maciMode = room.gameData?.settings?.maciMode;
             const [encodeInput, setEncodeInput] = React.useState('');
             const [decodeInput, setDecodeInput] = React.useState('');
+
+            const [revealProgress, setRevealProgress] = React.useState(0);
+
+            React.useEffect(() => {
+                if (phase !== 'RESULTS') return;
+                const timer = setInterval(() => { setRevealProgress(p => p + 1); }, 4000);
+                return () => clearInterval(timer);
+            }, [phase]);
 
             React.useEffect(() => {
                 if (!isHost) return;
                 const interval = setInterval(() => {
                     if (!room.gameData || room.gameData.transitioning) return;
-                    
-                    const currentPhase = room.gameData.phase;
-                    const deadline = room.gameData.deadline || 0;
-                    const timeUp = deadline > 0 && Date.now() >= deadline;
+                    const timeUp = !maciMode && room.gameData.deadline > 0 && Date.now() >= room.gameData.deadline;
 
-                    if (currentPhase === 'ENCODE') {
-                        const allEncoded = Object.keys(room.gameData.encodeSubmissions || {}).length === Object.keys(room.players).length;
-                        if (allEncoded || timeUp) {
+                    if (room.gameData.phase === 'ENCODE') {
+                        if (Object.keys(room.gameData.encodeSubmissions || {}).length === Object.keys(room.players).length || timeUp) {
                             getRoomRef(room.id).update({ 'gameData.transitioning': true });
-                            setTimeout(() => assignDecodes(), 1500);
-                        }
-                    } else if (currentPhase === 'DECODE') {
-                        const allDecoded = Object.keys(room.gameData.decodeSubmissions || {}).length === Object.keys(room.players).length;
-                        if (allDecoded || timeUp) {
-                            getRoomRef(room.id).update({ 'gameData.transitioning': true });
-                            setTimeout(() => {
-                                getRoomRef(room.id).update({
-                                    'gameData.phase': 'RESULTS',
-                                    'gameData.deadline': Date.now() + 30000,
-                                    'gameData.transitioning': false
-                                });
+                            setTimeout(async () => {
+                                const uids = Object.keys(room.players);
+                                const assignments = generateDerangedAssignments(uids) || uids.reduce((acc, uid, i) => ({...acc, [uid]: uids[(i+1)%uids.length]}), {});
+                                const filledEncodes = { ...(room.gameData.encodeSubmissions || {}) };
+                                uids.forEach(pid => { if (!filledEncodes[pid]) filledEncodes[pid] = "🤷‍♂️🚫"; });
+                                await getRoomRef(room.id).update({ 'gameData.encodeSubmissions': filledEncodes, 'gameData.assignmentsDecode': assignments, 'gameData.phase': 'DECODE', 'gameData.deadline': Date.now() + (guessTime * 1000), 'gameData.transitioning': false });
                             }, 1500);
                         }
-                    } else if (currentPhase === 'RESULTS') {
-                        if (timeUp) {
+                    } else if (room.gameData.phase === 'DECODE') {
+                        if (Object.keys(room.gameData.decodeSubmissions || {}).length === Object.keys(room.players).length || timeUp) {
                             getRoomRef(room.id).update({ 'gameData.transitioning': true });
-                            setTimeout(() => getRoomRef(room.id).update({ state: 'LOBBY', gameData: {} }), 1000);
+                            setTimeout(() => getRoomRef(room.id).update({ 'gameData.phase': 'RESULTS', 'gameData.deadline': Date.now() + ((Object.keys(room.players).length * 12000) + 10000), 'gameData.transitioning': false }), 1500);
                         }
+                    } else if (room.gameData.phase === 'RESULTS' && (!maciMode && timeUp)) {
+                        getRoomRef(room.id).update({ 'gameData.transitioning': true });
+                        setTimeout(() => getRoomRef(room.id).update({ state: 'LOBBY', gameData: {} }), 1000);
                     }
                 }, 1000);
                 return () => clearInterval(interval);
-            }, [room, isHost, guessTime]);
-
-            const assignDecodes = async () => {
-                const uids = Object.keys(room.players);
-                const assignments = generateDerangedAssignments(uids);
-                
-                const currentEncodes = room.gameData.encodeSubmissions || {};
-                const filledEncodes = { ...currentEncodes };
-                uids.forEach(pid => {
-                    if (!filledEncodes[pid]) filledEncodes[pid] = "🤷‍♂️🚫";
-                });
-
-                await getRoomRef(room.id).update({
-                    'gameData.encodeSubmissions': filledEncodes,
-                    'gameData.assignmentsDecode': assignments || {},
-                    'gameData.phase': 'DECODE',
-                    'gameData.deadline': Date.now() + (guessTime * 1000),
-                    'gameData.transitioning': false
-                });
-            };
-
-            const submitEncode = async () => {
-                if (!encodeInput.trim()) return;
-                await getRoomRef(room.id).update({ [`gameData.encodeSubmissions.${user.uid}`]: encodeInput.trim() });
-            };
-
-            const submitDecode = async () => {
-                if (!decodeInput.trim()) return;
-                await getRoomRef(room.id).update({ [`gameData.decodeSubmissions.${user.uid}`]: decodeInput.trim() });
-            };
+            }, [room, isHost, guessTime, maciMode]);
 
             if (phase === 'ENCODE') {
                 const targetPrompt = room.gameData.assignmentsEncode?.[user.uid] || "Loading...";
-                const hasSubmitted = !!room.gameData?.encodeSubmissions?.[user.uid];
-
+                if (room.gameData?.encodeSubmissions?.[user.uid]) return <div className="flex-1 flex items-center justify-center"><div className="glass-panel p-12 rounded-3xl"><h3 className="text-3xl font-bold mb-4">Emojis Locked!</h3></div></div>;
                 return (
                     <div className="flex-1 flex flex-col items-center justify-center mt-16 md:mt-0 pb-12">
                         <div className="glass-panel p-8 rounded-3xl w-full max-w-2xl text-center shadow-2xl border-t-8 border-neon-pink">
                             <h2 className="text-4xl font-black mb-4 text-white">Translate to Emojis</h2>
                             <p className="text-gray-400 mb-8 text-lg">Someone actually sent this in your group chat. Rewrite it using ONLY emojis!</p>
-                            
-                            <div className="bg-dark-surface p-6 rounded-2xl border border-gray-700 mb-8">
-                                <p className="text-2xl md:text-3xl font-medium italic text-neon-yellow">"{targetPrompt}"</p>
-                            </div>
-
-                            {!hasSubmitted ? (
-                                <>
-                                    <input 
-                                        type="text" 
-                                        value={encodeInput} onChange={(e) => setEncodeInput(e.target.value)}
-                                        placeholder="e.g., 🚗💨😱"
-                                        className="w-full bg-dark-bg/50 border border-gray-600 rounded-xl p-6 text-4xl text-center text-white focus:border-neon-pink focus:outline-none mb-6 tracking-widest"
-                                        maxLength="30"
-                                    />
-                                    <button onClick={submitEncode} disabled={!encodeInput.trim()} className="w-full bg-neon-pink text-white font-bold py-4 rounded-xl disabled:opacity-50 text-xl hover:bg-pink-500 transition-colors shadow-[0_0_20px_rgba(255,42,109,0.4)]">Submit Emojis</button>
-                                </>
-                            ) : (
-                                <div>
-                                    <h3 className="text-2xl font-bold mb-4">Emojis Locked!</h3>
-                                    <p className="text-gray-400">Waiting for others or the timer...</p>
-                                </div>
-                            )}
+                            <div className="bg-dark-surface p-6 rounded-2xl border border-gray-700 mb-8"><p className="text-2xl md:text-3xl font-medium italic text-neon-yellow">"{targetPrompt}"</p></div>
+                            <input type="text" value={encodeInput} onChange={e=>setEncodeInput(e.target.value)} placeholder="e.g., 🚗💨😱" className="w-full bg-dark-bg/50 border border-gray-600 rounded-xl p-6 text-4xl text-center text-white focus:border-neon-pink focus:outline-none mb-6 tracking-widest" maxLength="30"/>
+                            <button onClick={()=>getRoomRef(room.id).update({ [`gameData.encodeSubmissions.${user.uid}`]: encodeInput.trim() })} disabled={!encodeInput.trim()} className="w-full bg-neon-pink text-white font-bold py-4 rounded-xl disabled:opacity-50 text-xl hover:bg-pink-500 shadow-[0_0_20px_rgba(255,42,109,0.4)]">Submit Emojis</button>
                         </div>
                     </div>
                 );
             }
 
             if (phase === 'DECODE') {
-                const targetUid = room.gameData.assignmentsDecode?.[user.uid];
-                const emojisToDecode = room.gameData.encodeSubmissions?.[targetUid] || "🤷‍♂️";
-                const hasSubmitted = !!room.gameData?.decodeSubmissions?.[user.uid];
-
+                const emojisToDecode = room.gameData.encodeSubmissions?.[room.gameData.assignmentsDecode?.[user.uid]] || "🤷‍♂️";
+                if (room.gameData?.decodeSubmissions?.[user.uid]) return <div className="flex-1 flex items-center justify-center"><div className="glass-panel p-12 rounded-3xl"><h3 className="text-3xl font-bold mb-4">Guess Locked!</h3></div></div>;
                 return (
                     <div className="flex-1 flex flex-col items-center justify-center mt-16 md:mt-0 pb-12">
                         <div className="glass-panel p-8 rounded-3xl w-full max-w-2xl text-center shadow-2xl border-t-8 border-neon-cyan">
                             <h2 className="text-4xl font-black mb-4 text-white">Translate to Text</h2>
                             <p className="text-gray-400 mb-8 text-lg">Someone translated a real chat message into these emojis. What did the original text say?</p>
-                            
-                            <div className="bg-dark-surface p-8 rounded-2xl border border-gray-700 mb-8 shadow-inner">
-                                <p className="text-6xl md:text-7xl filter drop-shadow-md">{emojisToDecode}</p>
-                            </div>
-
-                            {!hasSubmitted ? (
-                                <>
-                                    <textarea 
-                                        value={decodeInput} onChange={(e) => setDecodeInput(e.target.value)}
-                                        placeholder="What do these emojis mean...?"
-                                        className="w-full bg-dark-bg/50 border border-gray-600 rounded-xl p-4 text-white focus:border-neon-cyan focus:outline-none mb-6 h-28 resize-none text-xl text-center"
-                                        maxLength="100"
-                                    />
-                                    <button onClick={submitDecode} disabled={!decodeInput.trim()} className="w-full bg-neon-cyan text-black font-bold py-4 rounded-xl disabled:opacity-50 text-xl hover:bg-cyan-400 transition-colors shadow-[0_0_20px_rgba(5,217,232,0.4)]">Submit Guess</button>
-                                </>
-                            ) : (
-                                <div>
-                                    <h3 className="text-2xl font-bold mb-4">Guess Locked!</h3>
-                                    <p className="text-gray-400">Waiting for the final reveals...</p>
-                                </div>
-                            )}
+                            <div className="bg-dark-surface p-8 rounded-2xl border border-gray-700 mb-8 shadow-inner"><p className="text-6xl md:text-7xl filter drop-shadow-md">{emojisToDecode}</p></div>
+                            <textarea value={decodeInput} onChange={e=>setDecodeInput(e.target.value)} placeholder="What do these emojis mean...?" className="w-full bg-dark-bg/50 border border-gray-600 rounded-xl p-4 text-white focus:border-neon-cyan focus:outline-none mb-6 h-28 resize-none text-xl text-center" maxLength="100"/>
+                            <button onClick={()=>getRoomRef(room.id).update({ [`gameData.decodeSubmissions.${user.uid}`]: decodeInput.trim() })} disabled={!decodeInput.trim()} className="w-full bg-neon-cyan text-black font-bold py-4 rounded-xl disabled:opacity-50 text-xl hover:bg-cyan-400 shadow-[0_0_20px_rgba(5,217,232,0.4)]">Submit Guess</button>
                         </div>
                     </div>
                 );
@@ -1625,55 +1115,201 @@
 
             if (phase === 'RESULTS') {
                 const uids = Object.keys(room.players);
-                return (
-                    <div className="flex-1 flex flex-col h-full mt-16 md:mt-0 pb-12">
-                        <div className="text-center mb-8 shrink-0">
-                            <h2 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-neon-pink to-neon-cyan pb-2">The Chains</h2>
-                            <p className="text-gray-400 text-lg">Did the message survive the translation?</p>
+                const chainIdx = Math.floor(revealProgress / 3);
+                const step = revealProgress % 3;
+
+                if (chainIdx >= uids.length) {
+                    return (
+                        <div className="flex-1 flex flex-col items-center justify-center pb-12 mt-16 md:mt-0">
+                            <div className="glass-panel p-8 rounded-3xl w-full max-w-md text-center shadow-2xl">
+                                <h2 className="text-5xl font-black mb-8 text-transparent bg-clip-text bg-gradient-to-r from-neon-pink to-neon-yellow">That's All!</h2>
+                                {isHost && <button onClick={() => getRoomRef(room.id).update({ state: 'LOBBY', gameData: {} })} className="w-full bg-dark-surface hover:bg-gray-800 border-2 border-gray-600 hover:border-gray-400 text-white font-bold py-4 rounded-xl transition-colors text-lg">Back to Lobby</button>}
+                            </div>
                         </div>
-                        <div className="flex-1 overflow-y-auto hide-scrollbar space-y-8 max-w-3xl mx-auto w-full px-2 pb-10">
-                            {uids.map(originalUid => {
-                                const originalMessage = room.gameData.assignmentsEncode[originalUid];
-                                const emojis = room.gameData.encodeSubmissions[originalUid];
-                                const decoderUid = Object.keys(room.gameData.assignmentsDecode || {}).find(
-                                    uid => room.gameData.assignmentsDecode[uid] === originalUid
-                                );
-                                const finalGuess = room.gameData.decodeSubmissions?.[decoderUid] || "No guess submitted...";
-                                
-                                return (
-                                    <div key={originalUid} className="glass-panel p-6 md:p-8 rounded-3xl space-y-4 border border-gray-700/50 shadow-lg">
-                                        <div className="bg-dark-surface p-4 rounded-2xl border-l-4 border-gray-500 relative mt-4">
-                                            <span className="absolute -top-3 left-4 bg-gray-500 text-black text-xs font-bold px-2 py-1 rounded uppercase shadow-sm">Original ({room.players[originalUid]?.name})</span>
-                                            <p className="text-xl md:text-2xl font-bold text-gray-200 mt-2">"{originalMessage}"</p>
-                                        </div>
-                                        
-                                        <div className="flex justify-center -my-2">
-                                            <div className="bg-dark-bg p-2 rounded-full border border-gray-700 z-10">
-                                                <Icon name="ArrowDown" className="text-gray-500" size={20}/>
+                    );
+                }
+
+                const originalUid = uids[chainIdx];
+                const originalMessage = room.gameData.assignmentsEncode[originalUid];
+                const emojis = room.gameData.encodeSubmissions[originalUid];
+                const decoderUid = Object.keys(room.gameData.assignmentsDecode || {}).find(uid => room.gameData.assignmentsDecode[uid] === originalUid);
+                const finalGuess = room.gameData.decodeSubmissions?.[decoderUid] || "No guess submitted...";
+
+                return (
+                    <div className="flex-1 flex flex-col h-full mt-16 md:mt-0 pb-12 items-center justify-center">
+                        <div className="glass-panel p-8 rounded-3xl w-full max-w-2xl text-center shadow-lg">
+                            <h2 className="text-3xl font-black mb-6 text-neon-cyan border-b-2 border-gray-700 pb-3">Chain {chainIdx + 1} of {uids.length}</h2>
+                            <div className="space-y-6 text-left">
+                                <div className="bg-dark-surface p-6 rounded-2xl border-l-4 border-gray-500 animate-fade-in relative">
+                                    <span className="absolute -top-3 left-4 bg-gray-500 text-black text-xs font-bold px-2 py-1 rounded">Original ({room.players[originalUid]?.name})</span>
+                                    <p className="text-2xl font-bold mt-2">"{originalMessage}"</p>
+                                </div>
+                                {step >= 1 && (
+                                    <div className="bg-yellow-900/20 p-6 rounded-2xl border-l-4 border-neon-yellow animate-fade-in relative text-center">
+                                        <span className="absolute -top-3 left-4 bg-neon-yellow text-black text-xs font-bold px-2 py-1 rounded">Emojis ({room.players[originalUid]?.name})</span>
+                                        <p className="text-5xl mt-2 tracking-widest">{emojis}</p>
+                                    </div>
+                                )}
+                                {step >= 2 && (
+                                    <div className="bg-cyan-900/20 p-6 rounded-2xl border-l-4 border-neon-cyan animate-fade-in relative">
+                                        <span className="absolute -top-3 left-4 bg-neon-cyan text-black text-xs font-bold px-2 py-1 rounded">Guess ({room.players[decoderUid]?.name})</span>
+                                        <p className="text-2xl font-bold mt-2 text-white">"{finalGuess}"</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+            return null;
+        };
+
+        // --- Mode 6: Chat Soundtrack ---
+        const ChatSoundtrackGame = ({ room, user }) => {
+            const isHost = room.host === user.uid;
+            const phase = room.gameData?.phase || 'SUBMIT';
+            const submitTime = room.gameData?.settings?.submitTime || 60;
+            const guessTime = room.gameData?.settings?.guessTime || 60;
+            const maciMode = room.gameData?.settings?.maciMode;
+            
+            const [search, setSearch] = React.useState('');
+            const [results, setResults] = React.useState([]);
+            const [selectedSong, setSelectedSong] = React.useState(null);
+
+            React.useEffect(() => {
+                if (!isHost) return;
+                const interval = setInterval(() => {
+                    if (!room.gameData || room.gameData.transitioning) return;
+                    const timeUp = !maciMode && room.gameData.deadline > 0 && Date.now() >= room.gameData.deadline;
+
+                    if (room.gameData.phase === 'SUBMIT') {
+                        if (Object.keys(room.gameData.songs || {}).length === Object.keys(room.players).length || timeUp) {
+                            getRoomRef(room.id).update({ 'gameData.transitioning': true });
+                            setTimeout(() => getRoomRef(room.id).update({ 'gameData.phase': 'VOTE', 'gameData.deadline': Date.now() + (guessTime * 1000), 'gameData.transitioning': false }), 1500);
+                        }
+                    } else if (room.gameData.phase === 'VOTE') {
+                        if (Object.keys(room.gameData.votes || {}).length === Object.keys(room.players).length || timeUp) {
+                            getRoomRef(room.id).update({ 'gameData.transitioning': true });
+                            setTimeout(() => revealScores(), 1500);
+                        }
+                    } else if (room.gameData.phase === 'RESULTS' && (!maciMode && timeUp)) {
+                        getRoomRef(room.id).update({ 'gameData.transitioning': true });
+                        setTimeout(() => getRoomRef(room.id).update({ state: 'LOBBY', gameData: {} }), 1000);
+                    }
+                }, 1000);
+                return () => clearInterval(interval);
+            }, [room, isHost, guessTime, maciMode]);
+
+            const searchItunes = async (query) => {
+                if (!query) return;
+                try {
+                    const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=5`);
+                    setResults((await res.json()).results);
+                } catch (e) { }
+            };
+
+            const revealScores = async () => {
+                let updates = { 'gameData.phase': 'RESULTS', 'gameData.deadline': Date.now() + 20000, 'gameData.transitioning': false };
+                Object.keys(room.players).forEach(pId => {
+                    let score = room.players[pId].score || 0;
+                    Object.values(room.gameData.votes || {}).forEach(votedId => {
+                        if (votedId === pId) score += 100; // 100 pts per vote received
+                    });
+                    updates[`players.${pId}.score`] = score;
+                });
+                await getRoomRef(room.id).update(updates);
+            };
+
+            if (phase === 'SUBMIT') {
+                const hasSubmitted = !!room.gameData?.songs?.[user.uid];
+                return (
+                    <div className="flex-1 flex flex-col items-center mt-16 md:mt-0 pb-12">
+                        <div className="glass-panel p-8 rounded-3xl w-full max-w-2xl text-center shadow-xl">
+                            <h2 className="text-4xl font-bold mb-3 text-neon-pink">Chat Soundtrack</h2>
+                            <p className="text-gray-400 mb-6 text-lg">Find the perfect song for this message:</p>
+                            
+                            <div className="bg-dark-surface p-6 rounded-2xl border-l-4 border-neon-yellow mb-8">
+                                <span className="text-xs font-bold text-gray-500 uppercase">{room.gameData.promptMessage?.sender}</span>
+                                <p className="text-2xl font-bold mt-2 text-white">"{room.gameData.promptMessage?.text}"</p>
+                            </div>
+
+                            {!hasSubmitted ? (
+                                <>
+                                    <div className="flex gap-2 mb-6 bg-dark-bg p-2 rounded-2xl border border-gray-700"><input type="text" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==='Enter'&&searchItunes(search)} placeholder="Search..." className="flex-1 bg-transparent p-3 text-white focus:outline-none"/><button onClick={()=>searchItunes(search)} className="bg-neon-cyan text-black px-6 rounded-xl font-bold">Search</button></div>
+                                    <div className="space-y-3 mb-8 text-left max-h-72 overflow-y-auto hide-scrollbar">
+                                        {results.map(t => (
+                                            <div key={t.trackId} onClick={()=>setSelectedSong(t)} className={`flex items-center gap-4 p-4 rounded-2xl cursor-pointer border-2 ${selectedSong?.trackId===t.trackId?'border-neon-cyan bg-cyan-900/30':'border-transparent bg-dark-surface'}`}>
+                                                <img src={t.artworkUrl100} className="w-14 h-14 rounded-xl" />
+                                                <div><p className="font-bold">{t.trackName}</p><p className="text-sm text-gray-400">{t.artistName}</p></div>
                                             </div>
-                                        </div>
+                                        ))}
+                                    </div>
+                                    <button onClick={()=>getRoomRef(room.id).update({ [`gameData.songs.${user.uid}`]: { id: selectedSong.trackId, title: selectedSong.trackName, artist: selectedSong.artistName, cover: selectedSong.artworkUrl100, preview: selectedSong.previewUrl } })} disabled={!selectedSong} className="w-full bg-neon-pink text-white font-bold py-4 rounded-xl disabled:opacity-50 text-xl">Lock In Song</button>
+                                </>
+                            ) : (<div className="py-16"><h3 className="text-3xl font-bold mb-4">Song Locked! 🔒</h3></div>)}
+                        </div>
+                    </div>
+                );
+            }
 
-                                        <div className="bg-yellow-900/20 p-6 rounded-2xl border-l-4 border-neon-yellow text-center shadow-inner relative mt-4">
-                                            <span className="absolute -top-3 left-4 bg-neon-yellow text-black text-xs font-bold px-2 py-1 rounded uppercase shadow-sm">Translation ({room.players[originalUid]?.name})</span>
-                                            <p className="text-4xl md:text-5xl mt-2">{emojis}</p>
-                                        </div>
+            if (phase === 'VOTE') {
+                const songs = Object.entries(room.gameData.songs || {}).map(([uid, s]) => ({...s, uid}));
+                // Deterministic shuffle
+                songs.sort((a,b) => a.id - b.id);
+                const hasVoted = !!room.gameData?.votes?.[user.uid];
 
-                                        <div className="flex justify-center -my-2">
-                                            <div className="bg-dark-bg p-2 rounded-full border border-gray-700 z-10">
-                                                <Icon name="ArrowDown" className="text-gray-500" size={20}/>
-                                            </div>
-                                        </div>
+                return (
+                    <div className="flex-1 flex flex-col h-full mt-16 md:mt-0">
+                        <div className="text-center mb-6">
+                            <h2 className="text-3xl font-black text-neon-yellow mb-2">Vote for the best Soundtrack!</h2>
+                            <div className="bg-dark-surface p-4 rounded-xl inline-block border border-gray-700"><p className="text-lg font-bold italic">"{room.gameData.promptMessage?.text}"</p></div>
+                        </div>
 
-                                        <div className="bg-cyan-900/20 p-4 rounded-2xl border-l-4 border-neon-cyan relative mt-4">
-                                            <span className="absolute -top-3 left-4 bg-neon-cyan text-black text-xs font-bold px-2 py-1 rounded uppercase shadow-sm">Guess ({room.players[decoderUid]?.name})</span>
-                                            <p className="text-xl md:text-2xl font-bold text-white mt-2">"{finalGuess}"</p>
+                        {!hasVoted ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 flex-1 overflow-y-auto hide-scrollbar pb-10 px-2">
+                                {songs.map(song => (
+                                    <div key={song.uid} className="glass-panel p-5 rounded-2xl flex items-center gap-5 border border-gray-700/50">
+                                        <div className="relative group shrink-0">
+                                            <img src={song.cover} className="w-20 h-20 rounded-xl shadow-lg" />
+                                            {song.preview && (<button className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 rounded-xl" onClick={() => { const a = new Audio(song.preview); a.volume=0.5; a.play(); }}><Icon name="Play" className="text-white" size={32}/></button>)}
+                                        </div>
+                                        <div className="flex-1 min-w-0 flex flex-col justify-between h-full">
+                                            <div><p className="font-bold truncate text-lg mb-1">{song.title}</p><p className="text-sm text-gray-400 truncate mb-4">{song.artist}</p></div>
+                                            <button onClick={()=>getRoomRef(room.id).update({[`gameData.votes.${user.uid}`]: song.uid})} className="bg-neon-cyan/20 text-neon-cyan py-2 rounded-lg font-bold hover:bg-neon-cyan hover:text-black transition-colors w-full">Vote</button>
                                         </div>
                                     </div>
-                                );
-                            })}
-                        </div>
-                        <div className="mt-6 text-center shrink-0">
-                            <p className="text-gray-400 font-bold tracking-widest text-sm animate-pulse">RETURNING TO LOBBY SHORTLY...</p>
+                                ))}
+                            </div>
+                        ) : (<div className="flex-1 flex items-center justify-center pb-20"><div className="glass-panel p-12 rounded-3xl"><h3 className="text-3xl font-bold mb-4">Vote Locked!</h3></div></div>)}
+                    </div>
+                );
+            }
+
+            if (phase === 'RESULTS') {
+                const songs = Object.entries(room.gameData.songs || {});
+                const votesCount = {};
+                Object.values(room.gameData.votes || {}).forEach(v => { votesCount[v] = (votesCount[v]||0) + 1; });
+                songs.sort((a,b) => (votesCount[b[0]]||0) - (votesCount[a[0]]||0));
+
+                return (
+                    <div className="flex-1 flex flex-col items-center pt-16 pb-12 overflow-y-auto hide-scrollbar">
+                        <div className="w-full max-w-2xl glass-panel p-8 rounded-3xl">
+                            <h2 className="text-4xl font-black mb-6 text-center text-neon-cyan">Best Soundtrack</h2>
+                            <div className="bg-dark-surface p-4 rounded-xl mb-8 border border-gray-700 text-center"><p className="text-xl font-bold italic">"{room.gameData.promptMessage?.text}"</p></div>
+                            <div className="space-y-4">
+                                {songs.map(([uid, song], idx) => (
+                                    <div key={uid} className={`flex items-center gap-4 p-4 rounded-2xl border-2 ${idx === 0 ? 'border-neon-yellow bg-yellow-900/20 shadow-[0_0_15px_rgba(255,195,0,0.3)]' : 'border-gray-700 bg-dark-surface'}`}>
+                                        <div className="text-3xl font-black text-gray-500 w-8 text-center">{idx === 0 ? '🏆' : `#${idx+1}`}</div>
+                                        <img src={song.cover} className="w-16 h-16 rounded-xl" />
+                                        <div className="flex-1 overflow-hidden">
+                                            <p className="font-bold text-lg text-white truncate">{song.title}</p>
+                                            <p className="text-sm text-neon-pink font-bold">Submitted by: {room.players[uid]?.name}</p>
+                                        </div>
+                                        <div className="text-2xl font-black text-neon-cyan">{votesCount[uid]||0} <span className="text-sm font-normal text-gray-400">votes</span></div>
+                                    </div>
+                                ))}
+                            </div>
+                            {isHost && <button onClick={() => getRoomRef(room.id).update({ state: 'LOBBY', gameData: {} })} className="mt-8 w-full bg-dark-surface hover:bg-gray-800 border-2 border-gray-600 text-white font-bold py-4 rounded-xl transition-colors">Back to Lobby</button>}
                         </div>
                     </div>
                 );
