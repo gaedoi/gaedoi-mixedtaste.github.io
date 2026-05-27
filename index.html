@@ -67,6 +67,30 @@
         audio::-webkit-media-controls-panel { background-color: #1a1c29; }
         audio::-webkit-media-controls-play-button, audio::-webkit-media-controls-mute-button { background-color: #05d9e8; border-radius: 50%; }
         audio::-webkit-media-controls-current-time-display, audio::-webkit-media-controls-time-remaining-display { color: white; }
+        
+        /* Custom range slider styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: currentColor;
+            cursor: pointer;
+            margin-top: -8px;
+            box-shadow: 0 0 10px currentColor;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+        }
     </style>
 </head>
 <body>
@@ -97,7 +121,6 @@
         // --- Utility Functions ---
         const generateRoomCode = () => Math.random().toString(36).substring(2, 6).toUpperCase();
         
-        // WhatsApp & Emoji Parser
         const parseWhatsAppLog = (text) => {
             const lines = text.split('\n');
             const messages = [];
@@ -134,6 +157,7 @@
                 const type = Math.random() > 0.5 ? 'who_said' : 'fill_blank';
                 if (type === 'who_said') {
                     const validMsgs = messages.filter(m => m.text.length > 15);
+                    if (validMsgs.length === 0) continue;
                     const msg = validMsgs[Math.floor(Math.random() * validMsgs.length)];
                     let options = new Set([msg.sender]);
                     while(options.size < Math.min(4, senders.length)) {
@@ -209,7 +233,6 @@
             return assignments;
         };
 
-
         // --- Icons ---
         const Icon = ({ name, size = 24, className = '' }) => {
             const getIcon = () => {
@@ -226,6 +249,7 @@
                     case 'Timer': return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
                     case 'ArrowDown': return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>;
                     case 'Link': return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>;
+                    case 'Settings': return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>;
                     default: return null;
                 }
             };
@@ -457,6 +481,11 @@
             
             const [parsingLog, setParsingLog] = React.useState('');
 
+            // Settings State
+            const [quizTime, setQuizTime] = React.useState(20);
+            const [submitTime, setSubmitTime] = React.useState(60);
+            const [guessTime, setGuessTime] = React.useState(60);
+
             const modes = [
                 { id: 'song_king', name: 'Song King', icon: 'Music', desc: 'Secretly submit songs. Guess who picked what.', active: true },
                 { id: 'playlist_ring', name: 'Playlist Ring', icon: 'ListMusic', desc: 'Create a prompt. Build a playlist. Cause chaos.', active: true },
@@ -514,23 +543,42 @@
             const startGame = async () => {
                 if (!isHost) return;
                 
-                let initialData = {};
+                let initialData = {
+                    settings: { quizTime, submitTime, guessTime }
+                };
+
                 if (room.currentMode === 'song_king') {
-                    initialData = { phase: 'SUBMIT', songs: {}, guesses: {}, deadline: Date.now() + 60000 };
+                    initialData.phase = 'SUBMIT';
+                    initialData.songs = {};
+                    initialData.guesses = {};
+                    initialData.deadline = Date.now() + (submitTime * 1000);
                 } else if (room.currentMode === 'playlist_ring') {
-                    initialData = { phase: 'PROMPT', prompts: {}, assignments: {}, playlists: {}, guesses: {}, deadline: Date.now() + 45000 };
+                    initialData.phase = 'PROMPT';
+                    initialData.prompts = {};
+                    initialData.assignments = {};
+                    initialData.playlists = {};
+                    initialData.guesses = {};
+                    initialData.deadline = Date.now() + (submitTime * 1000);
                 } else if (room.currentMode === 'whatsapp') {
                     if (!room.gameData?.whatsappQuestions?.length) {
                         alert("Please upload and parse a WhatsApp log first!");
                         return;
                     }
-                    initialData = { phase: 'QUESTION', currentQIndex: 0, answers: {}, questions: room.gameData.whatsappQuestions, deadline: Date.now() + 20000 };
+                    initialData.phase = 'QUESTION';
+                    initialData.currentQIndex = 0;
+                    initialData.answers = {};
+                    initialData.questions = room.gameData.whatsappQuestions;
+                    initialData.deadline = Date.now() + (quizTime * 1000);
                 } else if (room.currentMode === 'emoji_go') {
                     if (!room.gameData?.emojiQuestions?.length) {
                         alert("Please upload a WhatsApp log with sufficient Emoji usage first!");
                         return;
                     }
-                    initialData = { phase: 'QUESTION', currentQIndex: 0, answers: {}, questions: room.gameData.emojiQuestions, deadline: Date.now() + 20000 };
+                    initialData.phase = 'QUESTION';
+                    initialData.currentQIndex = 0;
+                    initialData.answers = {};
+                    initialData.questions = room.gameData.emojiQuestions;
+                    initialData.deadline = Date.now() + (quizTime * 1000);
                 } else if (room.currentMode === 'chat_chain') {
                     if (!room.gameData?.chatMessages?.length) {
                         alert("Please upload and parse a WhatsApp log first!");
@@ -542,17 +590,14 @@
                     uids.forEach(uid => {
                         initialAssignments[uid] = messagesPool.pop()?.text || "Hello world";
                     });
-                    initialData = { 
-                        phase: 'ENCODE', 
-                        assignmentsEncode: initialAssignments,
-                        encodeSubmissions: {},
-                        assignmentsDecode: {},
-                        decodeSubmissions: {},
-                        deadline: Date.now() + 60000 
-                    };
+                    initialData.phase = 'ENCODE';
+                    initialData.assignmentsEncode = initialAssignments;
+                    initialData.encodeSubmissions = {};
+                    initialData.assignmentsDecode = {};
+                    initialData.decodeSubmissions = {};
+                    initialData.deadline = Date.now() + (submitTime * 1000);
                 }
 
-                // Reset scores
                 let updates = { state: 'PLAYING', gameData: initialData };
                 Object.keys(room.players).forEach(pId => {
                     updates[`players.${pId}.score`] = 0;
@@ -591,7 +636,7 @@
                                 ))}
                             </div>
 
-                            {(room.currentMode === 'whatsapp' || room.currentMode === 'emoji_go') && isHost && (
+                            {(room.currentMode === 'whatsapp' || room.currentMode === 'emoji_go' || room.currentMode === 'chat_chain') && isHost && (
                                 <div className="mt-8 p-5 border-2 border-neon-yellow/50 bg-yellow-900/10 rounded-2xl">
                                     <h3 className="font-bold text-neon-yellow mb-2 flex items-center gap-2"><Icon name="UploadCloud" size={20}/> Host: Upload WhatsApp Log</h3>
                                     <p className="text-sm text-gray-300 mb-4 leading-relaxed">Export a WhatsApp chat (Without Media) as a <b>.txt</b> file. Processing is done 100% locally in your browser. Only the generated quiz questions are synced.</p>
@@ -600,6 +645,35 @@
                                         <input type="file" accept=".txt" onChange={handleFileUpload} className="hidden"/>
                                     </label>
                                     {parsingLog && <p className="mt-4 text-sm font-mono bg-dark-bg p-2 rounded text-center">{parsingLog}</p>}
+                                </div>
+                            )}
+
+                            {isHost && (
+                                <div className="mt-8 p-6 border-2 border-gray-700 bg-dark-surface rounded-2xl">
+                                    <h3 className="font-bold text-white mb-6 flex items-center gap-2"><Icon name="Settings" size={20}/> Time Limits</h3>
+                                    <div className="space-y-6">
+                                        <div>
+                                            <label className="flex justify-between text-sm font-bold text-gray-400 mb-2">
+                                                <span>Quiz Rounds <span className="font-normal text-xs ml-1">(WhatsApp/Emoji)</span></span>
+                                                <span className="text-neon-cyan">{quizTime}s</span>
+                                            </label>
+                                            <input type="range" min="10" max="60" step="5" value={quizTime} onChange={e=>setQuizTime(Number(e.target.value))} className="text-neon-cyan" />
+                                        </div>
+                                        <div>
+                                            <label className="flex justify-between text-sm font-bold text-gray-400 mb-2">
+                                                <span>Submit Phase <span className="font-normal text-xs ml-1">(Songs/Prompts/Emojis)</span></span>
+                                                <span className="text-neon-pink">{submitTime}s</span>
+                                            </label>
+                                            <input type="range" min="10" max="120" step="10" value={submitTime} onChange={e=>setSubmitTime(Number(e.target.value))} className="text-neon-pink" />
+                                        </div>
+                                        <div>
+                                            <label className="flex justify-between text-sm font-bold text-gray-400 mb-2">
+                                                <span>Guess Phase <span className="font-normal text-xs ml-1">(Playlists/Chains)</span></span>
+                                                <span className="text-neon-yellow">{guessTime}s</span>
+                                            </label>
+                                            <input type="range" min="10" max="120" step="10" value={guessTime} onChange={e=>setGuessTime(Number(e.target.value))} className="text-neon-yellow" />
+                                        </div>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -685,13 +759,16 @@
         const SongKingGame = ({ room, user, onLeave }) => {
             const isHost = room.host === user.uid;
             const phase = room.gameData?.phase || 'SUBMIT';
+            
+            const submitTime = room.gameData?.settings?.submitTime || 60;
+            const guessTime = room.gameData?.settings?.guessTime || 60;
+
             const [search, setSearch] = React.useState('');
             const [results, setResults] = React.useState([]);
             const [loading, setLoading] = React.useState(false);
             const [selectedSong, setSelectedSong] = React.useState(null);
             const [myGuesses, setMyGuesses] = React.useState({});
 
-            // Host Automation Loop
             React.useEffect(() => {
                 if (!isHost) return;
                 const interval = setInterval(() => {
@@ -708,7 +785,7 @@
                             setTimeout(() => {
                                 getRoomRef(room.id).update({
                                     'gameData.phase': 'GUESSING',
-                                    'gameData.deadline': Date.now() + 60000,
+                                    'gameData.deadline': Date.now() + (guessTime * 1000),
                                     'gameData.transitioning': false
                                 });
                             }, 1500);
@@ -727,7 +804,7 @@
                     }
                 }, 1000);
                 return () => clearInterval(interval);
-            }, [room, isHost]);
+            }, [room, isHost, guessTime]);
 
             const searchItunes = async (query) => {
                 if (!query) return;
@@ -896,27 +973,59 @@
             const qIndex = room.gameData.currentQIndex || 0;
             const questions = room.gameData.questions || [];
             const currentQ = questions[qIndex];
+            const phase = room.gameData.phase;
             
+            const quizTime = room.gameData?.settings?.quizTime || 20;
+
             const hasAnswered = !!room.gameData?.answers?.[qIndex]?.[user.uid];
 
-            // Host Automation Loop
             React.useEffect(() => {
                 if (!isHost) return;
                 const interval = setInterval(() => {
                     if (!room.gameData || room.gameData.transitioning) return;
                     
-                    const phase = room.gameData.phase;
                     const deadline = room.gameData.deadline || 0;
                     const timeUp = deadline > 0 && Date.now() >= deadline;
                     const cIdx = room.gameData.currentQIndex || 0;
 
-                    if (phase === 'QUESTION') {
+                    if (room.gameData.phase === 'QUESTION') {
                         const allAnswered = Object.keys(room.gameData.answers?.[cIdx] || {}).length === Object.keys(room.players).length;
                         if (allAnswered || timeUp) {
                             getRoomRef(room.id).update({ 'gameData.transitioning': true });
-                            setTimeout(() => nextQuestion(cIdx), 1500);
+                            setTimeout(() => {
+                                let updates = {
+                                    'gameData.phase': 'REVEAL',
+                                    'gameData.deadline': Date.now() + 10000,
+                                    'gameData.transitioning': false
+                                };
+                                const answers = room.gameData.answers?.[cIdx] || {};
+                                const curQ = room.gameData.questions[cIdx];
+                                Object.entries(answers).forEach(([pId, ans]) => {
+                                    if (ans === curQ.correctAnswer) {
+                                        updates[`players.${pId}.score`] = (room.players[pId].score || 0) + 100;
+                                    }
+                                });
+                                getRoomRef(room.id).update(updates);
+                            }, 1000);
                         }
-                    } else if (phase === 'RESULTS') {
+                    } else if (room.gameData.phase === 'REVEAL') {
+                        if (timeUp) {
+                            getRoomRef(room.id).update({ 'gameData.transitioning': true });
+                            setTimeout(() => {
+                                let updates = {};
+                                if (cIdx + 1 < room.gameData.questions.length) {
+                                    updates['gameData.currentQIndex'] = cIdx + 1;
+                                    updates['gameData.phase'] = 'QUESTION';
+                                    updates['gameData.deadline'] = Date.now() + (quizTime * 1000);
+                                } else {
+                                    updates['gameData.phase'] = 'RESULTS';
+                                    updates['gameData.deadline'] = Date.now() + 45000;
+                                }
+                                updates['gameData.transitioning'] = false;
+                                getRoomRef(room.id).update(updates);
+                            }, 1000);
+                        }
+                    } else if (room.gameData.phase === 'RESULTS') {
                         if (timeUp) {
                             getRoomRef(room.id).update({ 'gameData.transitioning': true });
                             setTimeout(() => getRoomRef(room.id).update({ state: 'LOBBY', gameData: {} }), 1000);
@@ -924,99 +1033,159 @@
                     }
                 }, 1000);
                 return () => clearInterval(interval);
-            }, [room, isHost]);
+            }, [room, isHost, quizTime]);
 
             const submitAnswer = async (answer) => {
                 await getRoomRef(room.id).update({ [`gameData.answers.${qIndex}.${user.uid}`]: answer });
             };
 
-            const nextQuestion = async (cIdx) => {
-                let updates = {};
-                const answers = room.gameData.answers?.[cIdx] || {};
-                const curQ = room.gameData.questions[cIdx];
-                
-                Object.entries(answers).forEach(([pId, ans]) => {
-                    if (ans === curQ.correctAnswer) {
-                        updates[`players.${pId}.score`] = (room.players[pId].score || 0) + 100;
-                    }
-                });
-
-                if (cIdx + 1 < room.gameData.questions.length) {
-                    updates['gameData.currentQIndex'] = cIdx + 1;
-                    updates['gameData.deadline'] = Date.now() + 20000;
-                } else {
-                    updates['gameData.phase'] = 'RESULTS';
-                    updates['gameData.deadline'] = Date.now() + 15000;
-                }
-                updates['gameData.transitioning'] = false;
-                await getRoomRef(room.id).update(updates);
-            };
-
-            if (room.gameData.phase === 'RESULTS') return <ResultsScreen room={room} />;
             if (!currentQ) return <div className="text-center mt-20 text-xl font-bold animate-pulse">Loading Question...</div>;
 
-            return (
-                <div className="flex-1 flex flex-col items-center pt-20 md:pt-16 pb-12 overflow-y-auto hide-scrollbar">
-                    <div className="w-full max-w-3xl">
-                        <div className="flex justify-between items-end mb-6 px-2">
-                            <div>
-                                <span className="text-neon-pink font-black text-xl uppercase tracking-widest block mb-1">Round {qIndex + 1}/{questions.length}</span>
-                                <span className="text-gray-400 font-medium">
-                                    {isEmoji ? 'Emoji Habits' : (currentQ.type === 'who_said' ? 'Who sent this message?' : 'Fill in the blank context')}
-                                </span>
-                            </div>
-                        </div>
-
-                        <div className={`glass-panel p-8 md:p-12 rounded-3xl mb-8 shadow-2xl border-l-8 ${isEmoji ? 'border-neon-yellow' : 'border-neon-cyan'} relative overflow-hidden`}>
-                            <div className="absolute -right-10 -bottom-10 opacity-5 pointer-events-none">
-                                <Icon name={isEmoji ? 'Smile' : 'MessageCircle'} size={200} />
-                            </div>
-                            <div className="relative z-10">
-                                {isEmoji ? (
-                                    <div className="text-center">
-                                        <p className="text-gray-400 uppercase tracking-widest font-bold mb-4">Who uses this emoji the most?</p>
-                                        <p className="text-8xl md:text-[120px] filter drop-shadow-lg animate-bounce-slow">{currentQ.emoji}</p>
-                                    </div>
-                                ) : currentQ.type === 'who_said' ? (
-                                    <p className="text-3xl md:text-4xl font-medium leading-relaxed italic text-white">"{currentQ.text.replace(/"/g, '')}"</p>
-                                ) : (
-                                    <div className="space-y-4">
-                                        {currentQ.context.split('\n\n').map((line, i) => (
-                                            <div key={i} className={`p-4 rounded-2xl ${i === 1 ? 'bg-yellow-900/30 border border-neon-yellow/50' : 'bg-dark-surface'}`}>
-                                                <p className={`text-xl md:text-2xl ${i === 1 ? 'font-bold text-neon-yellow' : 'text-gray-300'}`}>{line}</p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        {!hasAnswered ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {currentQ.options.map((opt, i) => (
-                                    <button 
-                                        key={i}
-                                        onClick={() => submitAnswer(opt)}
-                                        className={`bg-dark-surface hover:bg-gray-800 border-2 border-gray-700 p-6 rounded-2xl text-left font-bold text-xl transition-all active:scale-95 shadow-md hover:shadow-lg ${isEmoji ? 'hover:border-neon-yellow hover:text-neon-yellow' : 'hover:border-neon-cyan hover:text-neon-cyan'}`}
-                                    >
-                                        {opt}
-                                    </button>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="text-center p-10 bg-dark-surface rounded-3xl border border-gray-700 shadow-xl">
-                                <h3 className="text-2xl font-black mb-2 text-white">Answer Locked 🔒</h3>
-                                <p className="text-gray-400 mb-8 text-lg">Waiting for others or the timer...</p>
-                                <div className="flex justify-center gap-3">
-                                    {Object.keys(room.players).map(pid => (
-                                        <div key={pid} className={`w-4 h-4 rounded-full transition-all duration-500 ${room.gameData?.answers?.[qIndex]?.[pid] ? (isEmoji ? 'bg-neon-yellow shadow-[0_0_10px_#ffc300]' : 'bg-neon-cyan shadow-[0_0_10px_#05d9e8]') : 'bg-gray-700'}`}></div>
-                                    ))}
+            if (phase === 'QUESTION') {
+                return (
+                    <div className="flex-1 flex flex-col items-center pt-20 md:pt-16 pb-12 overflow-y-auto hide-scrollbar">
+                        <div className="w-full max-w-3xl">
+                            <div className="flex justify-between items-end mb-6 px-2">
+                                <div>
+                                    <span className="text-neon-pink font-black text-xl uppercase tracking-widest block mb-1">Round {qIndex + 1}/{questions.length}</span>
+                                    <span className="text-gray-400 font-medium">
+                                        {isEmoji ? 'Emoji Habits' : (currentQ.type === 'who_said' ? 'Who sent this message?' : 'Fill in the blank context')}
+                                    </span>
                                 </div>
                             </div>
-                        )}
+
+                            <div className={`glass-panel p-8 md:p-12 rounded-3xl mb-8 shadow-2xl border-l-8 ${isEmoji ? 'border-neon-yellow' : 'border-neon-cyan'} relative overflow-hidden`}>
+                                <div className="absolute -right-10 -bottom-10 opacity-5 pointer-events-none">
+                                    <Icon name={isEmoji ? 'Smile' : 'MessageCircle'} size={200} />
+                                </div>
+                                <div className="relative z-10">
+                                    {isEmoji ? (
+                                        <div className="text-center">
+                                            <p className="text-gray-400 uppercase tracking-widest font-bold mb-4">Who uses this emoji the most?</p>
+                                            <p className="text-8xl md:text-[120px] filter drop-shadow-lg animate-bounce-slow">{currentQ.emoji}</p>
+                                        </div>
+                                    ) : currentQ.type === 'who_said' ? (
+                                        <p className="text-3xl md:text-4xl font-medium leading-relaxed italic text-white">"{currentQ.text.replace(/"/g, '')}"</p>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            {currentQ.context.split('\n\n').map((line, i) => (
+                                                <div key={i} className={`p-4 rounded-2xl ${i === 1 ? 'bg-yellow-900/30 border border-neon-yellow/50' : 'bg-dark-surface'}`}>
+                                                    <p className={`text-xl md:text-2xl ${i === 1 ? 'font-bold text-neon-yellow' : 'text-gray-300'}`}>{line}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {!hasAnswered ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {currentQ.options.map((opt, i) => (
+                                        <button 
+                                            key={i}
+                                            onClick={() => submitAnswer(opt)}
+                                            className={`bg-dark-surface hover:bg-gray-800 border-2 border-gray-700 p-6 rounded-2xl text-left font-bold text-xl transition-all active:scale-95 shadow-md hover:shadow-lg ${isEmoji ? 'hover:border-neon-yellow hover:text-neon-yellow' : 'hover:border-neon-cyan hover:text-neon-cyan'}`}
+                                        >
+                                            {opt}
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center p-10 bg-dark-surface rounded-3xl border border-gray-700 shadow-xl">
+                                    <h3 className="text-2xl font-black mb-2 text-white">Answer Locked 🔒</h3>
+                                    <p className="text-gray-400 mb-8 text-lg">Waiting for others or the timer...</p>
+                                    <div className="flex justify-center gap-3 mb-8">
+                                        {Object.keys(room.players).map(pid => (
+                                            <div key={pid} className={`w-4 h-4 rounded-full transition-all duration-500 ${room.gameData?.answers?.[qIndex]?.[pid] ? (isEmoji ? 'bg-neon-yellow shadow-[0_0_10px_#ffc300]' : 'bg-neon-cyan shadow-[0_0_10px_#05d9e8]') : 'bg-gray-700'}`}></div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
-            );
+                );
+            }
+
+            if (phase === 'REVEAL') {
+                const answers = room.gameData.answers?.[qIndex] || {};
+                return (
+                    <div className="flex-1 flex flex-col items-center pt-20 md:pt-16 pb-12 overflow-y-auto">
+                        <div className="w-full max-w-3xl glass-panel p-8 rounded-3xl text-center shadow-2xl">
+                            <h2 className="text-3xl font-black text-neon-cyan mb-6">Round {qIndex + 1} Results</h2>
+                            <p className="text-gray-400 mb-2 font-bold uppercase tracking-widest text-sm">The correct answer was:</p>
+                            <p className="text-4xl md:text-5xl font-bold text-neon-yellow mb-10 bg-yellow-900/20 p-6 rounded-2xl border border-neon-yellow shadow-inner">"{currentQ.correctAnswer}"</p>
+                            
+                            <div className="space-y-4 text-left max-w-md mx-auto">
+                                {Object.entries(room.players).map(([pId, p]) => {
+                                    const pAns = answers[pId];
+                                    const isCorrect = pAns === currentQ.correctAnswer;
+                                    return (
+                                        <div key={pId} className={`p-5 rounded-2xl flex justify-between items-center border-2 ${isCorrect ? 'border-green-500/50 bg-green-900/20 shadow-[0_0_15px_rgba(34,197,94,0.2)]' : 'border-red-500/30 bg-red-900/20'}`}>
+                                            <span className="font-bold text-lg text-white">{p.name}</span>
+                                            <span className={`italic font-medium ${isCorrect ? 'text-green-400' : 'text-red-400'}`}>{pAns ? `"${pAns}"` : 'Skipped'}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <p className="mt-10 text-gray-500 animate-pulse text-sm font-bold tracking-widest">NEXT ROUND STARTING SHORTLY...</p>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (phase === 'RESULTS') {
+                const sortedPlayers = Object.entries(room.players).sort((a,b) => b[1].score - a[1].score);
+                return (
+                    <div className="flex-1 flex flex-col items-center pt-16 pb-12 overflow-y-auto hide-scrollbar">
+                        <div className="w-full max-w-4xl glass-panel p-8 rounded-3xl">
+                            <h2 className="text-5xl font-black mb-10 text-center text-transparent bg-clip-text bg-gradient-to-r from-neon-pink to-neon-yellow pb-2">Final Standings</h2>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-14">
+                                {sortedPlayers.map(([pId, p], idx) => (
+                                    <div key={pId} className={`flex items-center justify-between p-5 rounded-2xl border ${idx === 0 ? 'bg-yellow-900/20 border-neon-yellow shadow-[0_0_15px_rgba(255,195,0,0.2)]' : 'bg-dark-surface border-gray-700'}`}>
+                                        <div className="flex items-center gap-3">
+                                            <span className={`text-2xl font-black ${idx === 0 ? 'text-neon-yellow' : 'text-gray-500'}`}>#{idx + 1}</span>
+                                            <span className="font-bold text-lg text-white truncate max-w-[100px]">{p.name}</span>
+                                        </div>
+                                        <span className={`font-mono font-bold text-xl ${idx===0 ? 'text-neon-yellow' : 'text-neon-cyan'}`}>{p.score}</span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <h3 className="text-2xl font-black mb-6 text-neon-cyan border-b-2 border-gray-700 pb-3">Full Game Recap</h3>
+                            <div className="space-y-6">
+                                {questions.map((q, i) => (
+                                    <div key={i} className="bg-dark-surface p-6 rounded-2xl border border-gray-700/50">
+                                        <p className="text-sm text-neon-pink font-bold uppercase mb-3 tracking-widest">Round {i + 1}</p>
+                                        <p className="text-xl md:text-2xl text-white mb-4 italic">
+                                            {isEmoji ? `Who uses ${q.emoji} the most?` : `"${q.text || q.context.split('\n\n').join(' ')}"`}
+                                        </p>
+                                        <p className="text-lg font-bold text-neon-yellow mb-5 border-l-4 border-neon-yellow pl-3">Answer: {q.correctAnswer}</p>
+                                        
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                                            {Object.entries(room.players).map(([pId, p]) => {
+                                                const pAns = room.gameData.answers?.[i]?.[pId];
+                                                const isCorrect = pAns === q.correctAnswer;
+                                                return (
+                                                    <div key={pId} className={`flex justify-between p-3 rounded-xl border ${isCorrect ? 'border-green-500/30 bg-green-900/20 text-green-400' : 'border-red-500/20 bg-red-900/10 text-red-400'}`}>
+                                                        <span className="font-bold text-white truncate max-w-[100px]">{p.name}</span>
+                                                        <span className="truncate ml-2">{pAns || 'Skipped'}</span>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            <div className="mt-12 text-center">
+                                <p className="text-gray-400 font-bold tracking-widest text-sm animate-pulse">RETURNING TO LOBBY SHORTLY...</p>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+            return null;
         };
 
         // --- Mode 3: Playlist Ring ---
@@ -1024,6 +1193,9 @@
             const isHost = room.host === user.uid;
             const phase = room.gameData?.phase || 'PROMPT';
             
+            const submitTime = room.gameData?.settings?.submitTime || 60;
+            const guessTime = room.gameData?.settings?.guessTime || 60;
+
             const [promptInput, setPromptInput] = React.useState('');
             const [search, setSearch] = React.useState('');
             const [results, setResults] = React.useState([]);
@@ -1053,7 +1225,7 @@
                             setTimeout(() => {
                                 getRoomRef(room.id).update({
                                     'gameData.phase': 'GUESS',
-                                    'gameData.deadline': Date.now() + 60000,
+                                    'gameData.deadline': Date.now() + (guessTime * 1000),
                                     'gameData.transitioning': false
                                 });
                             }, 1500);
@@ -1072,7 +1244,7 @@
                     }
                 }, 1000);
                 return () => clearInterval(interval);
-            }, [room, isHost]);
+            }, [room, isHost, guessTime]);
 
             const submitPrompt = async () => {
                 if (!promptInput.trim()) return;
@@ -1098,7 +1270,7 @@
                     'gameData.prompts': filledPrompts,
                     'gameData.assignments': assignments, 
                     'gameData.phase': 'BUILD',
-                    'gameData.deadline': Date.now() + 90000,
+                    'gameData.deadline': Date.now() + ((guessTime + 30) * 1000), // extra 30s to build
                     'gameData.transitioning': false
                 });
             };
@@ -1144,7 +1316,7 @@
                     <div className="flex-1 flex flex-col items-center justify-center mt-16 md:mt-0 pb-12">
                         <div className="glass-panel p-8 rounded-3xl w-full max-w-lg text-center shadow-2xl">
                             <h2 className="text-4xl font-black mb-4 text-neon-yellow">Set the Vibe</h2>
-                            <p className="text-gray-400 mb-8 text-lg">Write a prompt or theme. Someone else will have to build a 3-song playlist for it.</p>
+                            <p className="text-gray-400 mb-8 text-lg">Write a prompt or theme. Someone else will have to build a playlist for it.</p>
                             
                             {!hasSubmitted ? (
                                 <>
@@ -1307,6 +1479,9 @@
             const isHost = room.host === user.uid;
             const phase = room.gameData?.phase || 'ENCODE';
             
+            const submitTime = room.gameData?.settings?.submitTime || 60;
+            const guessTime = room.gameData?.settings?.guessTime || 60;
+
             const [encodeInput, setEncodeInput] = React.useState('');
             const [decodeInput, setDecodeInput] = React.useState('');
 
@@ -1345,7 +1520,7 @@
                     }
                 }, 1000);
                 return () => clearInterval(interval);
-            }, [room, isHost]);
+            }, [room, isHost, guessTime]);
 
             const assignDecodes = async () => {
                 const uids = Object.keys(room.players);
@@ -1361,7 +1536,7 @@
                     'gameData.encodeSubmissions': filledEncodes,
                     'gameData.assignmentsDecode': assignments || {},
                     'gameData.phase': 'DECODE',
-                    'gameData.deadline': Date.now() + 60000,
+                    'gameData.deadline': Date.now() + (guessTime * 1000),
                     'gameData.transitioning': false
                 });
             };
