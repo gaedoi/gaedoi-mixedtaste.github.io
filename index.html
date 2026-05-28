@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mixed Taste 🧃</title>
     
     <!-- Tailwind CSS -->
@@ -20,12 +20,15 @@
                     },
                     fontFamily: {
                         'sans': ['"Space Grotesk"', 'system-ui', 'sans-serif'],
+                        'comic': ['"Comic Sans MS"', '"Comic Sans"', 'cursive', 'sans-serif'],
                     },
                     animation: {
                         'blob': 'blob 7s infinite',
                         'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                         'bounce-slow': 'bounce 2s infinite',
-                        'fade-in': 'fadeIn 0.5s ease-out forwards'
+                        'fade-in': 'fadeIn 0.5s ease-out forwards',
+                        'spin-fast': 'spin 1s linear infinite',
+                        'spin-prank': 'spin 1.5s ease-in-out',
                     },
                     keyframes: {
                         blob: {
@@ -73,38 +76,23 @@
         audio::-webkit-media-controls-play-button, audio::-webkit-media-controls-mute-button { background-color: #05d9e8; border-radius: 50%; }
         audio::-webkit-media-controls-current-time-display, audio::-webkit-media-controls-time-remaining-display { color: white; }
         
-        input[type=range] {
-            -webkit-appearance: none;
-            width: 100%;
-            background: transparent;
-        }
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 20px;
-            width: 20px;
-            border-radius: 50%;
-            background: currentColor;
-            cursor: pointer;
-            margin-top: -8px;
-            box-shadow: 0 0 10px currentColor;
-        }
-        input[type=range]::-webkit-slider-runnable-track {
-            width: 100%;
-            height: 4px;
-            cursor: pointer;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 2px;
-        }
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%; background: currentColor; cursor: pointer; margin-top: -8px; box-shadow: 0 0 10px currentColor; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: rgba(255, 255, 255, 0.2); border-radius: 2px; }
+
+        /* Prank Styles */
+        .prank-invert { filter: invert(1) hue-rotate(180deg); }
+        .prank-comic * { font-family: 'Comic Sans MS', 'Comic Sans', cursive, sans-serif !important; }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        // --- Firebase Initialization & Rules Setup ---
         const appId = 'mixed-taste-app';
         let db, auth;
 
+        // Charlie's Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyBks1pTTzyDNMwqKPxb0c3oB0d-q9GteHU",
             authDomain: "mixed-taste.firebaseapp.com",
@@ -121,19 +109,21 @@
 
         const getRoomRef = (roomId) => db.collection('rooms').doc(roomId);
 
-        // --- Utility Functions ---
         const generateRoomCode = () => Math.random().toString(36).substring(2, 6).toUpperCase();
         
         const parseWhatsAppLog = (text) => {
             const lines = text.split('\n');
             const messages = [];
-            const regex = /^\[(\d{2}\/\d{2}\/\d{4}),\s(\d{2}:\d{2}:\d{2})\]\s([^:]+):\s(.*)$/;
+            const regexIOS = /^\[(\d{2}\/\d{2}\/\d{4})[,\s]+(\d{2}:\d{2}:\d{2})\]\s([^:]+):\s(.*)$/;
+            const regexAndroid = /^(\d{2}\/\d{2}\/\d{2,4})[,\s]+(\d{2}:\d{2})\s-\s([^:]+):\s(.*)$/;
+            
             let currentMsg = null;
             for (let line of lines) {
                 line = line.trim();
                 if (!line) continue;
                 if (line.includes('‎') || line.includes('omitted') || line.includes('This message was deleted')) continue; 
-                const match = line.match(regex);
+
+                const match = line.match(regexIOS) || line.match(regexAndroid);
                 if (match) {
                     if (currentMsg && currentMsg.text.length > 3) messages.push(currentMsg);
                     const sender = match[3].trim();
@@ -151,6 +141,7 @@
             const questions = [];
             const senders = [...new Set(messages.map(m => m.sender))];
             if (senders.length < 2 || messages.length < 20) return null;
+
             for (let i = 0; i < numQuestions; i++) {
                 const type = Math.random() > 0.5 ? 'who_said' : 'fill_blank';
                 if (type === 'who_said') {
@@ -226,7 +217,6 @@
             return assignments;
         };
 
-        // --- Icons ---
         const Icon = ({ name, size = 24, className = '' }) => {
             const getIcon = () => {
                 switch(name) {
@@ -244,15 +234,23 @@
                     case 'Link': return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>;
                     case 'Settings': return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>;
                     case 'HeartPulse': return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/><path d="M3.22 12H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27"/></svg>;
+                    case 'Search': return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>;
+                    case 'RefreshCw': return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>;
+                    case 'Wand2': return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></svg>;
                     default: return null;
                 }
             };
             return getIcon();
         };
 
+        const PlayerAvatar = ({ player, size = '10' }) => {
+            if (player?.pfp) return <img src={player.pfp} className={`w-${size} h-${size} rounded-full border-2 border-neon-cyan object-cover bg-white`} alt={player.name} />;
+            const initial = player?.name ? player.name.charAt(0).toUpperCase() : '?';
+            return <div className={`w-${size} h-${size} rounded-full bg-gradient-to-tr from-neon-pink to-neon-yellow flex items-center justify-center font-bold text-black text-lg shadow-inner shrink-0`}>{initial}</div>;
+        };
+
         const TimerDisplay = ({ deadline, maciMode }) => {
             const [timeLeft, setTimeLeft] = React.useState(0);
-            
             React.useEffect(() => {
                 if (maciMode || !deadline) return;
                 const update = () => setTimeLeft(Math.max(0, Math.floor((deadline - Date.now()) / 1000)));
@@ -260,7 +258,6 @@
                 const interval = setInterval(update, 1000);
                 return () => clearInterval(interval);
             }, [deadline, maciMode]);
-
             if (maciMode) {
                 return (
                     <div className="fixed top-4 md:top-6 left-1/2 -translate-x-1/2 z-[60] glass-panel px-6 py-2 rounded-full border-2 border-neon-cyan/50 text-neon-cyan font-mono font-bold text-xl md:text-2xl flex items-center gap-2 shadow-lg transition-colors animate-pulse">
@@ -268,7 +265,6 @@
                     </div>
                 );
             }
-
             if (!deadline || timeLeft <= 0) return null;
             const isUrgent = timeLeft <= 10;
             return (
@@ -278,7 +274,239 @@
             );
         };
 
-        // --- Core Application ---
+        const WaitingFor = ({ players, completedIds }) => {
+            const waitingForIds = Object.keys(players).filter(id => !completedIds.includes(id));
+            if (waitingForIds.length === 0) return null;
+            return (
+                <div className="mt-8 flex flex-col items-center animate-fade-in">
+                    <p className="text-sm font-bold text-gray-400 mb-3 tracking-widest uppercase">Waiting For</p>
+                    <div className="flex flex-wrap justify-center gap-2">
+                        {waitingForIds.map(id => (
+                            <div key={id} className="bg-dark-bg border border-gray-600 px-4 py-2 rounded-full text-sm font-bold text-gray-300 shadow-inner flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-neon-pink animate-pulse"></div>
+                                {players[id].name}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        const PrankLayer = ({ room, user }) => {
+            const [activePrank, setActivePrank] = React.useState(null);
+
+            React.useEffect(() => {
+                if (!room?.prank) return;
+                const { id, type, target } = room.prank;
+                
+                // If it's a new prank and targets us
+                if ((target === 'all' || target === user.uid)) {
+                    setActivePrank(type);
+                    
+                    // Specific logic for CSS-based global pranks
+                    if (type === 'SPIN') document.body.classList.add('animate-spin-prank');
+                    if (type === 'INVERT') document.body.classList.add('prank-invert');
+                    if (type === 'COMIC') document.getElementById('root').classList.add('prank-comic');
+                    
+                    setTimeout(() => {
+                        setActivePrank(null);
+                        document.body.classList.remove('animate-spin-prank', 'prank-invert');
+                        document.getElementById('root').classList.remove('prank-comic');
+                    }, 5000);
+                }
+            }, [room?.prank?.id]);
+
+            if (activePrank === 'JUMPSCARE') {
+                return (
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-red-600 animate-pulse-fast">
+                        <h1 className="text-[15vw] font-black text-black tracking-tighter text-center leading-none">WAKE<br/>UP!</h1>
+                    </div>
+                );
+            }
+            if (activePrank === 'FAKE_ERROR') {
+                return (
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-sm">
+                        <div className="bg-dark-surface border-2 border-red-500 p-8 rounded-xl max-w-md w-full text-center">
+                            <Icon name="Search" size={48} className="text-red-500 mx-auto mb-4 animate-spin-fast" />
+                            <h2 className="text-2xl font-bold text-red-500 mb-2">Connection Lost</h2>
+                            <p className="text-gray-300 font-mono text-sm">Attempting to reconnect...<br/>Deleting User Data...</p>
+                        </div>
+                    </div>
+                );
+            }
+            return null;
+        };
+
+        const AdminPanel = ({ room, isHost }) => {
+            const [isOpen, setIsOpen] = React.useState(false);
+            const [password, setPassword] = React.useState('');
+            const [unlocked, setUnlocked] = React.useState(false);
+            const [target, setTarget] = React.useState('all');
+
+            if (!isHost) return null;
+
+            const triggerPrank = async (type) => {
+                await getRoomRef(room.id).update({
+                    prank: { id: Date.now(), type, target }
+                });
+                setIsOpen(false);
+            };
+
+            return (
+                <>
+                    <button onClick={() => setIsOpen(true)} className="fixed bottom-6 left-6 z-[100] w-12 h-12 bg-dark-surface border border-gray-700 rounded-full flex items-center justify-center text-gray-500 hover:text-white hover:border-neon-cyan transition-colors shadow-lg">
+                        🤫
+                    </button>
+                    {isOpen && (
+                        <div className="fixed inset-0 z-[999] bg-black/80 backdrop-blur flex items-center justify-center p-4">
+                            <div className="glass-panel p-8 rounded-3xl w-full max-w-md border-2 border-neon-cyan">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-2xl font-black text-neon-cyan flex items-center gap-2"><Icon name="Wand2" /> Chaos Control</h2>
+                                    <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white font-bold">✕</button>
+                                </div>
+                                
+                                {!unlocked ? (
+                                    <div>
+                                        <p className="text-gray-400 mb-4">Enter Host Password</p>
+                                        <input type="password" value={password} onChange={e=>setPassword(e.target.value)} className="w-full bg-dark-bg border border-gray-600 rounded-xl p-3 text-white focus:border-neon-cyan mb-4" placeholder="Password..."/>
+                                        <button onClick={() => { if(password === 'March4th!') setUnlocked(true); else alert('Incorrect'); }} className="w-full bg-neon-cyan text-black font-bold py-3 rounded-xl hover:bg-cyan-400">Unlock</button>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-6">
+                                        <div>
+                                            <label className="block text-sm font-bold text-gray-400 mb-2 uppercase">Target</label>
+                                            <select value={target} onChange={e=>setTarget(e.target.value)} className="w-full bg-dark-bg border border-gray-600 rounded-xl p-3 text-white font-bold">
+                                                <option value="all">Everyone</option>
+                                                {Object.entries(room.players).map(([id, p]) => <option key={id} value={id}>{p.name}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <button onClick={() => triggerPrank('SPIN')} className="bg-gray-800 hover:bg-gray-700 p-3 rounded-xl font-bold text-sm border border-gray-600">Spin Screen</button>
+                                            <button onClick={() => triggerPrank('INVERT')} className="bg-gray-800 hover:bg-gray-700 p-3 rounded-xl font-bold text-sm border border-gray-600">Flashbang</button>
+                                            <button onClick={() => triggerPrank('COMIC')} className="bg-gray-800 hover:bg-gray-700 p-3 rounded-xl font-bold text-sm border border-gray-600">Comic Curse</button>
+                                            <button onClick={() => triggerPrank('FAKE_ERROR')} className="bg-gray-800 hover:bg-gray-700 p-3 rounded-xl font-bold text-sm border border-gray-600">Fake Disconnect</button>
+                                            <button onClick={() => triggerPrank('JUMPSCARE')} className="col-span-2 bg-neon-pink text-white hover:bg-pink-600 p-3 rounded-xl font-bold text-sm shadow-[0_0_15px_rgba(255,42,109,0.4)]">"WAKE UP"</button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </>
+            );
+        };
+
+        const HostOverrideButton = ({ room, user }) => {
+            if (room.host !== user.uid) return null;
+            return (
+                <div className="fixed bottom-6 right-6 z-[100]">
+                    <button 
+                        onClick={() => getRoomRef(room.id).update({ 'gameData.forceAdvance': true })}
+                        className="bg-red-600/90 hover:bg-red-500 text-white text-sm font-bold px-4 py-3 rounded-xl backdrop-blur shadow-[0_0_15px_rgba(220,38,38,0.5)] border border-red-400 transition-transform active:scale-95 flex items-center gap-2"
+                    >
+                        ⏩ Force Next
+                    </button>
+                </div>
+            );
+        };
+
+        const CanvasPFP = ({ room, user }) => {
+            const canvasRef = React.useRef(null);
+            const [isDrawing, setIsDrawing] = React.useState(false);
+            const [hasDrawn, setHasDrawn] = React.useState(false);
+
+            React.useEffect(() => {
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = "white";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = 'black';
+                
+                // Prevent scrolling on touch
+                const preventScroll = (e) => e.preventDefault();
+                canvas.addEventListener('touchmove', preventScroll, { passive: false });
+                return () => canvas.removeEventListener('touchmove', preventScroll);
+            }, []);
+
+            const getCoordinates = (e) => {
+                const canvas = canvasRef.current;
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                
+                if (e.touches && e.touches.length > 0) {
+                    return {
+                        x: (e.touches[0].clientX - rect.left) * scaleX,
+                        y: (e.touches[0].clientY - rect.top) * scaleY
+                    };
+                }
+                return {
+                    x: (e.clientX - rect.left) * scaleX,
+                    y: (e.clientY - rect.top) * scaleY
+                };
+            };
+
+            const startDrawing = (e) => {
+                const { x, y } = getCoordinates(e);
+                const ctx = canvasRef.current.getContext('2d');
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                setIsDrawing(true);
+            };
+
+            const draw = (e) => {
+                if (!isDrawing) return;
+                const { x, y } = getCoordinates(e);
+                const ctx = canvasRef.current.getContext('2d');
+                ctx.lineTo(x, y);
+                ctx.stroke();
+                setHasDrawn(true);
+            };
+
+            const stopDrawing = () => {
+                if (isDrawing) {
+                    const ctx = canvasRef.current.getContext('2d');
+                    ctx.closePath();
+                    setIsDrawing(false);
+                }
+            };
+
+            const clearCanvas = () => {
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = "white";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                setHasDrawn(false);
+            };
+
+            const savePFP = async () => {
+                if (!hasDrawn) return;
+                // Save as JPEG to keep base64 string very small for Firestore
+                const dataUrl = canvasRef.current.toDataURL('image/jpeg', 0.5);
+                await getRoomRef(room.id).update({ [`players.${user.uid}.pfp`]: dataUrl });
+            };
+
+            return (
+                <div className="bg-dark-surface p-4 rounded-2xl border border-gray-700/50 flex flex-col items-center gap-3">
+                    <p className="text-sm font-bold text-neon-cyan uppercase tracking-widest">Draw your PFP!</p>
+                    <canvas 
+                        ref={canvasRef} 
+                        width={150} height={150}
+                        className="bg-white rounded-xl shadow-inner border-2 border-gray-600 touch-none cursor-crosshair w-[150px] h-[150px]"
+                        onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing}
+                        onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={stopDrawing}
+                    />
+                    <div className="flex gap-2 w-full max-w-[150px]">
+                        <button onClick={clearCanvas} className="flex-1 bg-gray-700 text-white text-xs font-bold py-2 rounded-lg">Clear</button>
+                        <button onClick={savePFP} disabled={!hasDrawn} className="flex-1 bg-neon-cyan text-black text-xs font-bold py-2 rounded-lg disabled:opacity-50">Save</button>
+                    </div>
+                </div>
+            );
+        };
+
         const App = () => {
             const [user, setUser] = React.useState(null);
             const [room, setRoom] = React.useState(null);
@@ -352,6 +580,11 @@
                         <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSW_C7jBu-wEIBaM8ja0qSmsuUnMpIk5xPstg&s" alt="Charlie Blake" className="w-8 h-8 rounded-full border-2 border-neon-cyan object-cover shadow-[0_0_10px_rgba(5,217,232,0.5)]" />
                     </div>
 
+                    {/* Global Overlays */}
+                    {room && <PrankLayer room={room} user={user} />}
+                    {room && room.state === 'PLAYING' && room.gameData?.phase !== 'RESULTS' && <HostOverrideButton room={room} user={user} />}
+                    {room && <AdminPanel room={room} isHost={room.host === user.uid} />}
+
                     {room && room.state === 'PLAYING' && <TimerDisplay deadline={room.gameData?.deadline} maciMode={room.gameData?.settings?.maciMode} />}
 
                     <div className="relative z-10 p-4 md:p-8 max-w-5xl mx-auto min-h-screen flex flex-col">
@@ -404,11 +637,10 @@
             const players = Object.entries(room.players || {});
             const [parsingLog, setParsingLog] = React.useState('');
 
-            // Settings
             const [quizTime, setQuizTime] = React.useState(20);
             const [submitTime, setSubmitTime] = React.useState(60);
             const [guessTime, setGuessTime] = React.useState(60);
-            const [maciMode, setMaciMode] = React.useState(false); // Infinite time mode
+            const [maciMode, setMaciMode] = React.useState(false); 
 
             const modes = [
                 { id: 'song_king', name: 'Song King', icon: 'Music', desc: 'Secretly submit songs. Guess who picked what.', active: true },
@@ -416,7 +648,8 @@
                 { id: 'whatsapp', name: 'Whatsapp Expozed', icon: 'MessageCircle', desc: 'Upload a chat export. Get quizzed on your chaos.', active: true },
                 { id: 'emoji_go', name: 'Emoji Go With Who?', icon: 'Smile', desc: 'Analyzes chat logs to find who uses 💀 the most.', active: true },
                 { id: 'chat_chain', name: 'Chat Chain', icon: 'Link', desc: 'Whatsapp Gartic Phone. Turn real texts to emojis and back.', active: true },
-                { id: 'chat_soundtrack', name: 'Chat Soundtrack', icon: 'HeartPulse', desc: 'Find the perfect iTunes song to score a random WhatsApp quote.', active: true }
+                { id: 'chat_soundtrack', name: 'Chat Soundtrack', icon: 'HeartPulse', desc: 'Find the perfect iTunes song to score a random WhatsApp quote.', active: true },
+                { id: 'google_it', name: 'Google It!', icon: 'Search', desc: 'Someone Googles a prompt, everyone answers. Best answer wins.', active: true }
             ];
 
             const handleFileUpload = (e) => {
@@ -439,6 +672,13 @@
                     setParsingLog(`✅ Success! Loaded data from ${messages.length} messages.`);
                 };
                 reader.readAsText(file);
+            };
+
+            const resetScores = async () => {
+                if (!isHost) return;
+                let updates = {};
+                Object.keys(room.players).forEach(pId => { updates[`players.${pId}.score`] = 0; });
+                await getRoomRef(room.id).update(updates);
             };
 
             const startGame = async () => {
@@ -467,10 +707,14 @@
                     const messagesPool = [...room.gameData.chatMessages];
                     initialData.promptMessage = messagesPool[Math.floor(Math.random() * messagesPool.length)];
                     initialData.phase = 'SUBMIT'; initialData.songs = {}; initialData.votes = {}; initialData.deadline = Date.now() + (submitTime * 1000);
+                } else if (room.currentMode === 'google_it') {
+                    const uids = Object.keys(room.players);
+                    const randomGoogler = uids[Math.floor(Math.random() * uids.length)];
+                    initialData.phase = 'PROMPT'; initialData.googler = randomGoogler; initialData.prompt = ''; initialData.answers = {}; initialData.votes = {}; initialData.deadline = Date.now() + (submitTime * 1000);
                 }
 
                 let updates = { state: 'PLAYING', gameData: initialData };
-                Object.keys(room.players).forEach(pId => { updates[`players.${pId}.score`] = 0; updates[`players.${pId}.ready`] = false; });
+                Object.keys(room.players).forEach(pId => { updates[`players.${pId}.ready`] = false; });
                 await getRoomRef(room.id).update(updates);
             };
 
@@ -499,7 +743,7 @@
                             {['whatsapp', 'emoji_go', 'chat_chain', 'chat_soundtrack'].includes(room.currentMode) && isHost && (
                                 <div className="mt-8 p-5 border-2 border-neon-yellow/50 bg-yellow-900/10 rounded-2xl">
                                     <h3 className="font-bold text-neon-yellow mb-2 flex items-center gap-2"><Icon name="UploadCloud" size={20}/> Host: Upload WhatsApp Log</h3>
-                                    <p className="text-sm text-gray-300 mb-4 leading-relaxed">Export a WhatsApp chat (Without Media) as a <b>.txt</b> file. Processing is done 100% locally in your browser. Only the generated quiz questions are synced.</p>
+                                    <p className="text-sm text-gray-300 mb-4 leading-relaxed">Export a WhatsApp chat (Without Media) as a <b>.txt</b> file. Processing is done 100% locally.</p>
                                     <label className="block w-full text-center py-3 px-4 rounded-xl border-2 border-dashed border-gray-600 hover:border-neon-yellow cursor-pointer transition-colors">
                                         <span className="text-neon-yellow font-bold">Choose .txt File</span>
                                         <input type="file" accept=".txt" onChange={handleFileUpload} className="hidden"/>
@@ -522,18 +766,9 @@
                                         </label>
                                     </div>
                                     <div className={`space-y-6 transition-opacity ${maciMode ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
-                                        <div>
-                                            <label className="flex justify-between text-sm font-bold text-gray-400 mb-2"><span>Quiz Rounds <span className="font-normal text-xs ml-1">(WhatsApp/Emoji)</span></span><span className="text-neon-cyan">{quizTime}s</span></label>
-                                            <input type="range" min="10" max="60" step="5" value={quizTime} onChange={e=>setQuizTime(Number(e.target.value))} className="text-neon-cyan" />
-                                        </div>
-                                        <div>
-                                            <label className="flex justify-between text-sm font-bold text-gray-400 mb-2"><span>Submit Phase <span className="font-normal text-xs ml-1">(Songs/Prompts/Emojis)</span></span><span className="text-neon-pink">{submitTime}s</span></label>
-                                            <input type="range" min="10" max="120" step="10" value={submitTime} onChange={e=>setSubmitTime(Number(e.target.value))} className="text-neon-pink" />
-                                        </div>
-                                        <div>
-                                            <label className="flex justify-between text-sm font-bold text-gray-400 mb-2"><span>Guess Phase <span className="font-normal text-xs ml-1">(Playlists/Chains)</span></span><span className="text-neon-yellow">{guessTime}s</span></label>
-                                            <input type="range" min="10" max="120" step="10" value={guessTime} onChange={e=>setGuessTime(Number(e.target.value))} className="text-neon-yellow" />
-                                        </div>
+                                        <div><label className="flex justify-between text-sm font-bold text-gray-400 mb-2"><span>Quiz Rounds <span className="font-normal text-xs ml-1">(WhatsApp/Emoji)</span></span><span className="text-neon-cyan">{quizTime}s</span></label><input type="range" min="10" max="60" step="5" value={quizTime} onChange={e=>setQuizTime(Number(e.target.value))} className="text-neon-cyan" /></div>
+                                        <div><label className="flex justify-between text-sm font-bold text-gray-400 mb-2"><span>Submit Phase <span className="font-normal text-xs ml-1">(Songs/Prompts/Emojis)</span></span><span className="text-neon-pink">{submitTime}s</span></label><input type="range" min="10" max="120" step="10" value={submitTime} onChange={e=>setSubmitTime(Number(e.target.value))} className="text-neon-pink" /></div>
+                                        <div><label className="flex justify-between text-sm font-bold text-gray-400 mb-2"><span>Guess Phase <span className="font-normal text-xs ml-1">(Playlists/Chains)</span></span><span className="text-neon-yellow">{guessTime}s</span></label><input type="range" min="10" max="120" step="10" value={guessTime} onChange={e=>setGuessTime(Number(e.target.value))} className="text-neon-yellow" /></div>
                                     </div>
                                 </div>
                             )}
@@ -545,34 +780,46 @@
                             <h2 className="text-xl font-bold mb-6 flex justify-between items-center">
                                 Players <span className="bg-gray-800 text-neon-cyan font-mono px-3 py-1 rounded-full">{players.length}</span>
                             </h2>
-                            <div className="flex-1 overflow-y-auto hide-scrollbar space-y-3 mb-6 min-h-[200px]">
+                            <div className="flex-1 overflow-y-auto hide-scrollbar space-y-3 mb-6 min-h-[150px]">
                                 {players.map(([id, p]) => (
                                     <div key={id} className="flex items-center justify-between bg-dark-surface p-4 rounded-xl border border-gray-700/50 shadow-sm">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-neon-pink to-neon-yellow flex items-center justify-center font-bold text-black text-lg shadow-inner">{p.name.charAt(0).toUpperCase()}</div>
-                                            <span className="font-bold text-lg">{p.name} {id === room.host && '👑'}</span>
+                                            <PlayerAvatar player={p} size="10" />
+                                            <div>
+                                                <span className="font-bold text-lg">{p.name} {id === room.host && '👑'}</span>
+                                                {p.score > 0 && <p className="text-xs font-mono text-neon-cyan">{p.score} pts</p>}
+                                            </div>
                                         </div>
                                         {p.ready ? <span className="text-neon-cyan text-xs font-black tracking-wider bg-cyan-900/30 px-2 py-1 rounded">READY</span> : <span className="text-gray-500 text-xs font-bold tracking-wider">WAITING</span>}
                                     </div>
                                 ))}
                             </div>
                             
-                            {!isHost ? (
-                                <button onClick={() => getRoomRef(room.id).update({ [`players.${user.uid}.ready`]: !room.players[user.uid]?.ready })} className={`w-full py-4 rounded-2xl font-bold text-xl transition-all active:scale-95 shadow-lg ${room.players[user.uid]?.ready ? 'bg-gray-700 text-white shadow-none' : 'bg-neon-cyan text-black hover:bg-cyan-400 shadow-neon-cyan/20'}`}>
-                                    {room.players[user.uid]?.ready ? 'Unready' : 'Ready Up!'}
-                                </button>
-                            ) : (
-                                <button onClick={startGame} disabled={players.length < 2} className="w-full py-4 rounded-2xl font-bold text-xl bg-neon-pink text-white hover:bg-pink-500 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 shadow-lg shadow-neon-pink/20">
-                                    Start Game
-                                </button>
-                            )}
+                            <CanvasPFP room={room} user={user} />
+
+                            <div className="mt-6 flex flex-col gap-2">
+                                {!isHost ? (
+                                    <button onClick={() => getRoomRef(room.id).update({ [`players.${user.uid}.ready`]: !room.players[user.uid]?.ready })} className={`w-full py-4 rounded-2xl font-bold text-xl transition-all active:scale-95 shadow-lg ${room.players[user.uid]?.ready ? 'bg-gray-700 text-white shadow-none' : 'bg-neon-cyan text-black hover:bg-cyan-400 shadow-neon-cyan/20'}`}>
+                                        {room.players[user.uid]?.ready ? 'Unready' : 'Ready Up!'}
+                                    </button>
+                                ) : (
+                                    <>
+                                        <button onClick={startGame} disabled={players.length < 2} className="w-full py-4 rounded-2xl font-bold text-xl bg-neon-pink text-white hover:bg-pink-500 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 shadow-lg shadow-neon-pink/20">
+                                            Start Game
+                                        </button>
+                                        <button onClick={resetScores} className="w-full py-3 rounded-xl font-bold text-sm bg-dark-surface border border-gray-600 text-gray-400 hover:text-white transition-colors">
+                                            Reset All Scores
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                            {isHost && players.length < 2 && <p className="text-center text-xs text-red-400 mt-3 font-medium">Requires at least 2 players to start.</p>}
                         </div>
                     </div>
                 </div>
             );
         };
 
-        // --- Game Manager Router ---
         const GameManager = ({ room, user, onLeave }) => {
             if (room.currentMode === 'song_king') return <SongKingGame room={room} user={user} onLeave={onLeave} />;
             if (room.currentMode === 'whatsapp') return <QuizGame room={room} user={user} onLeave={onLeave} isEmoji={false} />;
@@ -580,30 +827,38 @@
             if (room.currentMode === 'playlist_ring') return <PlaylistRingGame room={room} user={user} onLeave={onLeave} />;
             if (room.currentMode === 'chat_chain') return <ChatChainGame room={room} user={user} onLeave={onLeave} />;
             if (room.currentMode === 'chat_soundtrack') return <ChatSoundtrackGame room={room} user={user} onLeave={onLeave} />;
+            if (room.currentMode === 'google_it') return <GoogleItGame room={room} user={user} onLeave={onLeave} />;
             return <div>Unknown mode</div>;
         };
 
-        const ResultsScreen = ({ room }) => {
+        const ResultsScreen = ({ room, isHost }) => {
             const sortedPlayers = Object.entries(room.players).sort((a,b) => b[1].score - a[1].score);
             return (
                 <div className="flex-1 flex flex-col items-center justify-center pb-12 mt-16 md:mt-0">
                     <div className="glass-panel p-8 rounded-3xl w-full max-w-md text-center shadow-2xl border border-neon-yellow/30 animate-pulse-fast">
-                        <h2 className="text-5xl font-black mb-8 text-transparent bg-clip-text bg-gradient-to-r from-neon-pink to-neon-yellow pb-2">Final Scores</h2>
+                        <h2 className="text-5xl font-black mb-8 text-transparent bg-clip-text bg-gradient-to-r from-neon-pink to-neon-yellow pb-2">Standings</h2>
                         <div className="space-y-4 mb-8">
                             {sortedPlayers.map(([pId, p], idx) => (
                                 <div key={pId} className={`flex items-center justify-between p-5 rounded-2xl border ${idx === 0 ? 'bg-yellow-900/20 border-neon-yellow shadow-[0_0_15px_rgba(255,195,0,0.2)]' : 'bg-dark-surface border-gray-700'}`}>
-                                    <div className="flex items-center gap-4"><span className={`text-3xl font-black ${idx === 0 ? 'text-neon-yellow' : 'text-gray-500'}`}>#{idx + 1}</span><span className="font-bold text-xl">{p.name}</span></div>
+                                    <div className="flex items-center gap-4">
+                                        <span className={`text-3xl font-black ${idx === 0 ? 'text-neon-yellow' : 'text-gray-500'}`}>#{idx + 1}</span>
+                                        <PlayerAvatar player={p} size="10" />
+                                        <span className="font-bold text-xl">{p.name}</span>
+                                    </div>
                                     <span className={`font-mono font-bold text-2xl ${idx===0 ? 'text-neon-yellow' : 'text-neon-cyan'}`}>{p.score}</span>
                                 </div>
                             ))}
                         </div>
-                        <p className="text-gray-400 font-bold tracking-widest text-sm">RETURNING TO LOBBY SHORTLY...</p>
+                        {isHost ? (
+                            <button onClick={() => getRoomRef(room.id).update({ state: 'LOBBY', gameData: {} })} className="w-full bg-dark-surface hover:bg-gray-800 border-2 border-gray-600 text-white font-bold py-4 rounded-xl transition-colors">Back to Lobby</button>
+                        ) : (
+                            <p className="text-gray-400 font-bold tracking-widest text-sm uppercase">Waiting for host...</p>
+                        )}
                     </div>
                 </div>
             );
         };
 
-        // --- Mode 1: Song King ---
         const SongKingGame = ({ room, user }) => {
             const isHost = room.host === user.uid;
             const phase = room.gameData?.phase || 'SUBMIT';
@@ -619,17 +874,19 @@
                 if (!isHost) return;
                 const interval = setInterval(() => {
                     if (!room.gameData || room.gameData.transitioning) return;
-                    const timeUp = !maciMode && room.gameData.deadline > 0 && Date.now() >= room.gameData.deadline;
+                    const forceAdvance = room.gameData.forceAdvance;
+                    const timeUp = forceAdvance || (!maciMode && room.gameData.deadline > 0 && Date.now() >= room.gameData.deadline);
+
                     if (room.gameData.phase === 'SUBMIT') {
                         const allSub = Object.keys(room.gameData.songs || {}).length === Object.keys(room.players).length;
                         if (allSub || timeUp) {
-                            getRoomRef(room.id).update({ 'gameData.transitioning': true });
+                            getRoomRef(room.id).update({ 'gameData.transitioning': true, 'gameData.forceAdvance': false });
                             setTimeout(() => getRoomRef(room.id).update({ 'gameData.phase': 'GUESSING', 'gameData.deadline': Date.now() + (guessTime * 1000), 'gameData.transitioning': false }), 1500);
                         }
                     } else if (room.gameData.phase === 'GUESSING') {
                         const allGuessed = Object.keys(room.gameData.guesses || {}).length === Object.keys(room.players).length;
                         if (allGuessed || timeUp) {
-                            getRoomRef(room.id).update({ 'gameData.transitioning': true });
+                            getRoomRef(room.id).update({ 'gameData.transitioning': true, 'gameData.forceAdvance': false });
                             setTimeout(() => {
                                 let updates = { 'gameData.phase': 'RESULTS', 'gameData.deadline': Date.now() + 15000, 'gameData.transitioning': false };
                                 Object.keys(room.players).forEach(pId => {
@@ -640,7 +897,7 @@
                                 getRoomRef(room.id).update(updates);
                             }, 1500);
                         }
-                    } else if (room.gameData.phase === 'RESULTS' && timeUp) {
+                    } else if (room.gameData.phase === 'RESULTS' && (!maciMode && timeUp)) {
                         getRoomRef(room.id).update({ 'gameData.transitioning': true });
                         setTimeout(() => getRoomRef(room.id).update({ state: 'LOBBY', gameData: {} }), 1000);
                     }
@@ -654,11 +911,6 @@
                     const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=5`);
                     setResults((await res.json()).results);
                 } catch (e) { }
-            };
-
-            const submitSong = async () => {
-                if (!selectedSong) return;
-                await getRoomRef(room.id).update({ [`gameData.songs.${user.uid}`]: { id: selectedSong.trackId, title: selectedSong.trackName, artist: selectedSong.artistName, cover: selectedSong.artworkUrl100, preview: selectedSong.previewUrl } });
             };
 
             if (phase === 'SUBMIT') {
@@ -679,9 +931,9 @@
                                             </div>
                                         ))}
                                     </div>
-                                    <button onClick={submitSong} disabled={!selectedSong} className="w-full bg-neon-pink text-white font-bold py-4 rounded-xl disabled:opacity-50 text-xl">Lock In</button>
+                                    <button onClick={()=>getRoomRef(room.id).update({ [`gameData.songs.${user.uid}`]: { id: selectedSong.trackId, title: selectedSong.trackName, artist: selectedSong.artistName, cover: selectedSong.artworkUrl100, preview: selectedSong.previewUrl } })} disabled={!selectedSong} className="w-full bg-neon-pink text-white font-bold py-4 rounded-xl disabled:opacity-50 text-xl">Lock In</button>
                                 </>
-                            ) : (<div className="py-16"><h3 className="text-3xl font-bold mb-4">Locked! 🔒</h3><p className="text-gray-400">Waiting for everyone else...</p></div>)}
+                            ) : (<div className="py-16"><h3 className="text-3xl font-bold mb-4">Locked! 🔒</h3><WaitingFor players={room.players} completedIds={Object.keys(room.gameData?.songs || {})} /></div>)}
                         </div>
                     </div>
                 );
@@ -711,16 +963,15 @@
                                     </div>
                                 ))}
                             </div>
-                        ) : (<div className="flex-1 flex items-center justify-center pb-20"><div className="glass-panel p-12 rounded-3xl"><h3 className="text-3xl font-bold mb-4">Guesses Locked!</h3></div></div>)}
+                        ) : (<div className="flex-1 flex items-center justify-center pb-20"><div className="glass-panel p-12 rounded-3xl"><h3 className="text-3xl font-bold mb-4">Guesses Locked!</h3><WaitingFor players={room.players} completedIds={Object.keys(room.gameData?.guesses || {})} /></div></div>)}
                         {!hasGuessed && (<div className="fixed bottom-6 left-0 w-full flex justify-center px-4 z-50"><button onClick={()=>getRoomRef(room.id).update({[`gameData.guesses.${user.uid}`]: myGuesses})} disabled={Object.keys(myGuesses).length!==songs.length} className="w-full max-w-lg bg-neon-pink text-white font-bold py-4 rounded-2xl disabled:opacity-0 text-xl shadow-[0_10px_40px_rgba(255,42,109,0.3)]">Submit Final Guesses</button></div>)}
                     </div>
                 );
             }
-            if (phase === 'RESULTS') return <ResultsScreen room={room} />;
+            if (phase === 'RESULTS') return <ResultsScreen room={room} isHost={isHost} />;
             return null;
         };
 
-        // --- Mode 2 & 4: Quiz Games ---
         const QuizGame = ({ room, user, isEmoji }) => {
             const isHost = room.host === user.uid;
             const qIndex = room.gameData.currentQIndex || 0;
@@ -735,30 +986,33 @@
                 if (!isHost) return;
                 const interval = setInterval(() => {
                     if (!room.gameData || room.gameData.transitioning) return;
-                    const timeUp = !maciMode && room.gameData.deadline > 0 && Date.now() >= room.gameData.deadline;
+                    const forceAdvance = room.gameData.forceAdvance;
+                    const timeUp = forceAdvance || (!maciMode && room.gameData.deadline > 0 && Date.now() >= room.gameData.deadline);
+                    const cIdx = room.gameData.currentQIndex || 0;
+
                     if (room.gameData.phase === 'QUESTION') {
-                        const allAns = Object.keys(room.gameData.answers?.[qIndex] || {}).length === Object.keys(room.players).length;
+                        const allAns = Object.keys(room.gameData.answers?.[cIdx] || {}).length === Object.keys(room.players).length;
                         if (allAns || timeUp) {
-                            getRoomRef(room.id).update({ 'gameData.transitioning': true });
+                            getRoomRef(room.id).update({ 'gameData.transitioning': true, 'gameData.forceAdvance': false });
                             setTimeout(() => {
                                 let updates = { 'gameData.phase': 'REVEAL', 'gameData.deadline': Date.now() + 10000, 'gameData.transitioning': false };
-                                Object.entries(room.gameData.answers?.[qIndex] || {}).forEach(([pId, ans]) => {
+                                Object.entries(room.gameData.answers?.[cIdx] || {}).forEach(([pId, ans]) => {
                                     if (ans === currentQ.correctAnswer) updates[`players.${pId}.score`] = (room.players[pId].score || 0) + 100;
                                 });
                                 getRoomRef(room.id).update(updates);
                             }, 1000);
                         }
-                    } else if (room.gameData.phase === 'REVEAL' && (timeUp || maciMode)) { // Even in maciMode, reveal auto-advances eventually or host clicks
-                        getRoomRef(room.id).update({ 'gameData.transitioning': true });
+                    } else if (room.gameData.phase === 'REVEAL' && (timeUp || maciMode || forceAdvance)) { 
+                        getRoomRef(room.id).update({ 'gameData.transitioning': true, 'gameData.forceAdvance': false });
                         setTimeout(() => {
                             let updates = { 'gameData.transitioning': false };
-                            if (qIndex + 1 < questions.length) {
-                                updates['gameData.currentQIndex'] = qIndex + 1; updates['gameData.phase'] = 'QUESTION'; updates['gameData.deadline'] = Date.now() + (quizTime * 1000);
+                            if (cIdx + 1 < questions.length) {
+                                updates['gameData.currentQIndex'] = cIdx + 1; updates['gameData.phase'] = 'QUESTION'; updates['gameData.deadline'] = Date.now() + (quizTime * 1000);
                             } else {
                                 updates['gameData.phase'] = 'RESULTS'; updates['gameData.deadline'] = Date.now() + 45000;
                             }
                             getRoomRef(room.id).update(updates);
-                        }, maciMode ? 8000 : 1000);
+                        }, maciMode && !forceAdvance ? 8000 : 1000);
                     } else if (room.gameData.phase === 'RESULTS' && (!maciMode && timeUp)) {
                         getRoomRef(room.id).update({ 'gameData.transitioning': true });
                         setTimeout(() => getRoomRef(room.id).update({ state: 'LOBBY', gameData: {} }), 1000);
@@ -775,6 +1029,9 @@
                         <div className="w-full max-w-3xl">
                             <div className="flex justify-between items-end mb-6 px-2"><div><span className="text-neon-pink font-black text-xl uppercase tracking-widest block mb-1">Round {qIndex + 1}/{questions.length}</span></div></div>
                             <div className={`glass-panel p-8 md:p-12 rounded-3xl mb-8 shadow-2xl border-l-8 ${isEmoji ? 'border-neon-yellow' : 'border-neon-cyan'} relative overflow-hidden`}>
+                                <div className="absolute -right-10 -bottom-10 opacity-5 pointer-events-none">
+                                    <Icon name={isEmoji ? 'Smile' : 'MessageCircle'} size={200} />
+                                </div>
                                 <div className="relative z-10">
                                     {isEmoji ? (
                                         <div className="text-center"><p className="text-gray-400 uppercase tracking-widest font-bold mb-4">Who uses this emoji the most?</p><p className="text-8xl md:text-[120px] filter drop-shadow-lg animate-bounce-slow">{currentQ.emoji}</p></div>
@@ -789,7 +1046,7 @@
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     {currentQ.options.map((opt, i) => <button key={i} onClick={()=>getRoomRef(room.id).update({ [`gameData.answers.${qIndex}.${user.uid}`]: opt })} className={`bg-dark-surface hover:bg-gray-800 border-2 border-gray-700 p-6 rounded-2xl text-left font-bold text-xl transition-all active:scale-95 shadow-md hover:shadow-lg ${isEmoji ? 'hover:border-neon-yellow hover:text-neon-yellow' : 'hover:border-neon-cyan hover:text-neon-cyan'}`}>{opt}</button>)}
                                 </div>
-                            ) : (<div className="text-center p-10 bg-dark-surface rounded-3xl border border-gray-700 shadow-xl"><h3 className="text-2xl font-black mb-2 text-white">Answer Locked 🔒</h3></div>)}
+                            ) : (<div className="text-center p-10 bg-dark-surface rounded-3xl border border-gray-700 shadow-xl"><h3 className="text-2xl font-black mb-2 text-white">Answer Locked 🔒</h3><WaitingFor players={room.players} completedIds={Object.keys(room.gameData?.answers?.[qIndex] || {})} /></div>)}
                         </div>
                     </div>
                 );
@@ -799,7 +1056,7 @@
                 const answers = room.gameData.answers?.[qIndex] || {};
                 return (
                     <div className="flex-1 flex flex-col items-center pt-20 md:pt-16 pb-12 overflow-y-auto">
-                        <div className="w-full max-w-3xl glass-panel p-8 rounded-3xl text-center shadow-2xl">
+                        <div className="w-full max-w-3xl glass-panel p-8 rounded-3xl text-center shadow-2xl animate-dramatic">
                             <h2 className="text-3xl font-black text-neon-cyan mb-6">Round {qIndex + 1} Results</h2>
                             <p className="text-gray-400 mb-2 font-bold uppercase tracking-widest text-sm">The correct answer was:</p>
                             <p className="text-4xl md:text-5xl font-bold text-neon-yellow mb-10 bg-yellow-900/20 p-6 rounded-2xl border border-neon-yellow shadow-inner">"{currentQ.correctAnswer}"</p>
@@ -809,7 +1066,8 @@
                                     const isCorrect = pAns === currentQ.correctAnswer;
                                     return (
                                         <div key={pId} className={`p-5 rounded-2xl flex justify-between items-center border-2 ${isCorrect ? 'border-green-500/50 bg-green-900/20 shadow-[0_0_15px_rgba(34,197,94,0.2)]' : 'border-red-500/30 bg-red-900/20'}`}>
-                                            <span className="font-bold text-lg text-white">{p.name}</span><span className={`italic font-medium ${isCorrect ? 'text-green-400' : 'text-red-400'}`}>{pAns ? `"${pAns}"` : 'Skipped'}</span>
+                                            <div className="flex items-center gap-3"><PlayerAvatar player={p} size="8"/><span className="font-bold text-lg text-white">{p.name}</span></div>
+                                            <span className={`italic font-medium ${isCorrect ? 'text-green-400' : 'text-red-400'}`}>{pAns ? `"${pAns}"` : 'Skipped'}</span>
                                         </div>
                                     );
                                 })}
@@ -831,8 +1089,30 @@
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-14">
                                 {sortedPlayers.map(([pId, p], idx) => (
                                     <div key={pId} className={`flex items-center justify-between p-5 rounded-2xl border ${idx === 0 ? 'bg-yellow-900/20 border-neon-yellow shadow-[0_0_15px_rgba(255,195,0,0.2)]' : 'bg-dark-surface border-gray-700'}`}>
-                                        <div className="flex items-center gap-3"><span className={`text-2xl font-black ${idx === 0 ? 'text-neon-yellow' : 'text-gray-500'}`}>#{idx + 1}</span><span className="font-bold text-lg text-white truncate max-w-[100px]">{p.name}</span></div>
+                                        <div className="flex items-center gap-3"><span className={`text-2xl font-black ${idx === 0 ? 'text-neon-yellow' : 'text-gray-500'}`}>#{idx + 1}</span><PlayerAvatar player={p} size="8"/><span className="font-bold text-lg text-white truncate max-w-[100px]">{p.name}</span></div>
                                         <span className={`font-mono font-bold text-xl ${idx===0 ? 'text-neon-yellow' : 'text-neon-cyan'}`}>{p.score}</span>
+                                    </div>
+                                ))}
+                            </div>
+                            <h3 className="text-2xl font-black mb-6 text-neon-cyan border-b-2 border-gray-700 pb-3">Full Game Recap</h3>
+                            <div className="space-y-6">
+                                {questions.map((q, i) => (
+                                    <div key={i} className="bg-dark-surface p-6 rounded-2xl border border-gray-700/50">
+                                        <p className="text-sm text-neon-pink font-bold uppercase mb-3 tracking-widest">Round {i + 1}</p>
+                                        <p className="text-xl md:text-2xl text-white mb-4 italic">{isEmoji ? `Who uses ${q.emoji} the most?` : `"${q.text || q.context.split('\n\n').join(' ')}"`}</p>
+                                        <p className="text-lg font-bold text-neon-yellow mb-5 border-l-4 border-neon-yellow pl-3">Answer: {q.correctAnswer}</p>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                                            {Object.entries(room.players).map(([pId, p]) => {
+                                                const pAns = room.gameData.answers?.[i]?.[pId];
+                                                const isCorrect = pAns === q.correctAnswer;
+                                                return (
+                                                    <div key={pId} className={`flex justify-between items-center p-3 rounded-xl border ${isCorrect ? 'border-green-500/30 bg-green-900/20 text-green-400' : 'border-red-500/20 bg-red-900/10 text-red-400'}`}>
+                                                        <div className="flex items-center gap-2"><PlayerAvatar player={p} size="6"/><span className="font-bold text-white truncate max-w-[80px]">{p.name}</span></div>
+                                                        <span className="truncate ml-2">{pAns || 'Skipped'}</span>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -843,7 +1123,6 @@
             return null;
         };
 
-        // --- Mode 3: Playlist Ring ---
         const PlaylistRingGame = ({ room, user }) => {
             const isHost = room.host === user.uid;
             const phase = room.gameData?.phase || 'PROMPT';
@@ -870,22 +1149,37 @@
                 if (!isHost) return;
                 const interval = setInterval(() => {
                     if (!room.gameData || room.gameData.transitioning) return;
-                    const timeUp = !maciMode && room.gameData.deadline > 0 && Date.now() >= room.gameData.deadline;
+                    const forceAdvance = room.gameData.forceAdvance;
+                    const timeUp = forceAdvance || (!maciMode && room.gameData.deadline > 0 && Date.now() >= room.gameData.deadline);
 
                     if (room.gameData.phase === 'PROMPT') {
                         if (Object.keys(room.gameData.prompts || {}).length === Object.keys(room.players).length || timeUp) {
-                            getRoomRef(room.id).update({ 'gameData.transitioning': true });
-                            setTimeout(() => assignAndMoveToBuild(), 1500);
+                            getRoomRef(room.id).update({ 'gameData.transitioning': true, 'gameData.forceAdvance': false });
+                            setTimeout(() => {
+                                const uids = Object.keys(room.players);
+                                const assignments = generateDerangedAssignments(uids) || uids.reduce((acc, uid, i) => ({...acc, [uid]: uids[(i+1)%uids.length]}), {});
+                                const filledPrompts = { ...(room.gameData.prompts || {}) };
+                                uids.forEach(pid => { if (!filledPrompts[pid]) filledPrompts[pid] = "A mysterious vibe..."; });
+                                getRoomRef(room.id).update({ 'gameData.prompts': filledPrompts, 'gameData.assignments': assignments, 'gameData.phase': 'BUILD', 'gameData.deadline': Date.now() + ((guessTime + 30) * 1000), 'gameData.transitioning': false });
+                            }, 1500);
                         }
                     } else if (room.gameData.phase === 'BUILD') {
                         if (Object.keys(room.gameData.lockedIn || {}).length === Object.keys(room.players).length || timeUp) {
-                            getRoomRef(room.id).update({ 'gameData.transitioning': true });
+                            getRoomRef(room.id).update({ 'gameData.transitioning': true, 'gameData.forceAdvance': false });
                             setTimeout(() => getRoomRef(room.id).update({ 'gameData.phase': 'GUESS', 'gameData.deadline': Date.now() + (guessTime * 1000), 'gameData.transitioning': false }), 1500);
                         }
                     } else if (room.gameData.phase === 'GUESS') {
                         if (Object.keys(room.gameData.guesses || {}).length === Object.keys(room.players).length || timeUp) {
-                            getRoomRef(room.id).update({ 'gameData.transitioning': true });
-                            setTimeout(() => revealScores(), 1500);
+                            getRoomRef(room.id).update({ 'gameData.transitioning': true, 'gameData.forceAdvance': false });
+                            setTimeout(() => {
+                                let updates = { 'gameData.phase': 'RESULTS', 'gameData.deadline': Date.now() + 15000, 'gameData.transitioning': false };
+                                Object.keys(room.players).forEach(pId => {
+                                    let score = room.players[pId].score || 0;
+                                    Object.entries(room.gameData.guesses?.[pId] || {}).forEach(([bUid, gUid]) => { if (gUid === room.gameData.assignments[bUid]) score += 100; });
+                                    updates[`players.${pId}.score`] = score;
+                                });
+                                getRoomRef(room.id).update(updates);
+                            }, 1500);
                         }
                     } else if (room.gameData.phase === 'RESULTS' && (!maciMode && timeUp)) {
                         getRoomRef(room.id).update({ 'gameData.transitioning': true });
@@ -895,28 +1189,9 @@
                 return () => clearInterval(interval);
             }, [room, isHost, guessTime, maciMode]);
 
-            const assignAndMoveToBuild = async () => {
-                const uids = Object.keys(room.players);
-                const assignments = generateDerangedAssignments(uids) || uids.reduce((acc, uid, i) => ({...acc, [uid]: uids[(i+1)%uids.length]}), {});
-                const filledPrompts = { ...(room.gameData.prompts || {}) };
-                uids.forEach(pid => { if (!filledPrompts[pid]) filledPrompts[pid] = "A mysterious vibe..."; });
-                await getRoomRef(room.id).update({ 'gameData.prompts': filledPrompts, 'gameData.assignments': assignments, 'gameData.phase': 'BUILD', 'gameData.deadline': Date.now() + ((guessTime + 30) * 1000), 'gameData.transitioning': false });
-            };
-
-            const revealScores = async () => {
-                let updates = { 'gameData.phase': 'RESULTS', 'gameData.deadline': Date.now() + 15000, 'gameData.transitioning': false };
-                Object.keys(room.players).forEach(pId => {
-                    let score = room.players[pId].score || 0;
-                    Object.entries(room.gameData.guesses?.[pId] || {}).forEach(([bUid, gUid]) => { if (gUid === room.gameData.assignments[bUid]) score += 100; });
-                    updates[`players.${pId}.score`] = score;
-                });
-                await getRoomRef(room.id).update(updates);
-            };
-
             const playMix = (songs) => {
                 if (activeAudioRef.current) activeAudioRef.current.pause();
                 if (mixTimeoutRef.current) clearTimeout(mixTimeoutRef.current);
-
                 let i = 0;
                 const playNext = () => {
                     if (i >= songs.length) return;
@@ -948,7 +1223,7 @@
                                     <textarea value={promptInput} onChange={e=>setPromptInput(e.target.value)} placeholder="e.g., 'Late night drive contemplating life'" className="w-full bg-dark-bg/50 border border-gray-600 rounded-xl p-4 text-white focus:border-neon-yellow focus:outline-none mb-6 h-32 resize-none text-lg" maxLength="60" />
                                     <button onClick={()=>getRoomRef(room.id).update({[`gameData.prompts.${user.uid}`]: promptInput.trim()})} disabled={!promptInput.trim()} className="w-full bg-neon-yellow text-black font-bold py-4 rounded-xl disabled:opacity-50 text-xl hover:bg-yellow-400">Submit Vibe</button>
                                 </>
-                            ) : (<div><h3 className="text-2xl font-bold mb-4">Vibe Submitted!</h3><p className="text-gray-400 mb-8">Waiting for everyone else...</p></div>)}
+                            ) : (<div><h3 className="text-2xl font-bold mb-4">Vibe Submitted!</h3><WaitingFor players={room.players} completedIds={Object.keys(room.gameData?.prompts || {})} /></div>)}
                         </div>
                     </div>
                 );
@@ -956,7 +1231,7 @@
 
             if (phase === 'BUILD') {
                 const targetPrompt = room.gameData.prompts?.[room.gameData.assignments?.[user.uid]] || "A mysterious vibe...";
-                if (room.gameData?.lockedIn?.[user.uid]) return <div className="flex-1 flex items-center justify-center"><div className="text-center glass-panel p-12 rounded-3xl"><h3 className="text-3xl font-bold mb-4">Playlist Locked! 💿</h3></div></div>;
+                if (room.gameData?.lockedIn?.[user.uid]) return <div className="flex-1 flex items-center justify-center"><div className="text-center glass-panel p-12 rounded-3xl"><h3 className="text-3xl font-bold mb-4">Playlist Locked! 💿</h3><WaitingFor players={room.players} completedIds={Object.keys(room.gameData?.lockedIn || {})} /></div></div>;
 
                 return (
                     <div className="flex-1 flex flex-col h-full overflow-hidden mt-16 md:mt-0 pb-6">
@@ -989,7 +1264,6 @@
                                         ))}
                                     </div>
                                     <button onClick={()=>getRoomRef(room.id).update({ [`gameData.lockedIn.${user.uid}`]: true })} disabled={myPlaylist.length < 3} className="w-full mt-6 bg-neon-cyan text-black py-4 rounded-xl font-bold text-lg hover:bg-cyan-400 disabled:opacity-30">Lock In Playlist</button>
-                                    <p className="text-xs text-gray-500 text-center mt-2">Unlimited songs allowed (min 3).</p>
                                 </div>
                             </div>
                         </div>
@@ -1023,18 +1297,17 @@
                                     </div>
                                 ))}
                             </div>
-                        ) : (<div className="flex-1 flex items-center justify-center"><div className="text-center glass-panel p-12 rounded-3xl"><h3 className="text-3xl font-bold mb-4">Guesses Locked!</h3></div></div>)}
+                        ) : (<div className="flex-1 flex items-center justify-center"><div className="text-center glass-panel p-12 rounded-3xl"><h3 className="text-3xl font-bold mb-4">Guesses Locked!</h3><WaitingFor players={room.players} completedIds={Object.keys(room.gameData?.guesses || {})} /></div></div>)}
                         {!room.gameData?.guesses?.[user.uid] && (
                             <div className="fixed bottom-6 left-0 w-full flex justify-center px-4 pointer-events-none z-50"><button onClick={() => getRoomRef(room.id).update({[`gameData.guesses.${user.uid}`]: myGuesses})} disabled={Object.keys(myGuesses).length !== playlists.length} className="w-full max-w-lg bg-neon-pink text-white font-bold py-4 rounded-2xl disabled:opacity-0 pointer-events-auto text-xl shadow-[0_10px_40px_rgba(255,42,109,0.3)]">Submit Guesses</button></div>
                         )}
                     </div>
                 );
             }
-            if (phase === 'RESULTS') return <ResultsScreen room={room} />;
+            if (phase === 'RESULTS') return <ResultsScreen room={room} isHost={isHost} />;
             return null;
         };
 
-        // --- Mode 5: Chat Chain (WhatsApp Gartic Phone) ---
         const ChatChainGame = ({ room, user }) => {
             const isHost = room.host === user.uid;
             const phase = room.gameData?.phase || 'ENCODE';
@@ -1042,7 +1315,6 @@
             const maciMode = room.gameData?.settings?.maciMode;
             const [encodeInput, setEncodeInput] = React.useState('');
             const [decodeInput, setDecodeInput] = React.useState('');
-
             const [revealProgress, setRevealProgress] = React.useState(0);
 
             React.useEffect(() => {
@@ -1055,11 +1327,12 @@
                 if (!isHost) return;
                 const interval = setInterval(() => {
                     if (!room.gameData || room.gameData.transitioning) return;
-                    const timeUp = !maciMode && room.gameData.deadline > 0 && Date.now() >= room.gameData.deadline;
+                    const forceAdvance = room.gameData.forceAdvance;
+                    const timeUp = forceAdvance || (!maciMode && room.gameData.deadline > 0 && Date.now() >= room.gameData.deadline);
 
                     if (room.gameData.phase === 'ENCODE') {
                         if (Object.keys(room.gameData.encodeSubmissions || {}).length === Object.keys(room.players).length || timeUp) {
-                            getRoomRef(room.id).update({ 'gameData.transitioning': true });
+                            getRoomRef(room.id).update({ 'gameData.transitioning': true, 'gameData.forceAdvance': false });
                             setTimeout(async () => {
                                 const uids = Object.keys(room.players);
                                 const assignments = generateDerangedAssignments(uids) || uids.reduce((acc, uid, i) => ({...acc, [uid]: uids[(i+1)%uids.length]}), {});
@@ -1070,7 +1343,7 @@
                         }
                     } else if (room.gameData.phase === 'DECODE') {
                         if (Object.keys(room.gameData.decodeSubmissions || {}).length === Object.keys(room.players).length || timeUp) {
-                            getRoomRef(room.id).update({ 'gameData.transitioning': true });
+                            getRoomRef(room.id).update({ 'gameData.transitioning': true, 'gameData.forceAdvance': false });
                             setTimeout(() => getRoomRef(room.id).update({ 'gameData.phase': 'RESULTS', 'gameData.deadline': Date.now() + ((Object.keys(room.players).length * 12000) + 10000), 'gameData.transitioning': false }), 1500);
                         }
                     } else if (room.gameData.phase === 'RESULTS' && (!maciMode && timeUp)) {
@@ -1083,15 +1356,15 @@
 
             if (phase === 'ENCODE') {
                 const targetPrompt = room.gameData.assignmentsEncode?.[user.uid] || "Loading...";
-                if (room.gameData?.encodeSubmissions?.[user.uid]) return <div className="flex-1 flex items-center justify-center"><div className="glass-panel p-12 rounded-3xl"><h3 className="text-3xl font-bold mb-4">Emojis Locked!</h3></div></div>;
+                if (room.gameData?.encodeSubmissions?.[user.uid]) return <div className="flex-1 flex items-center justify-center"><div className="glass-panel p-12 rounded-3xl"><h3 className="text-3xl font-bold mb-4">Emojis Locked!</h3><WaitingFor players={room.players} completedIds={Object.keys(room.gameData?.encodeSubmissions || {})} /></div></div>;
                 return (
                     <div className="flex-1 flex flex-col items-center justify-center mt-16 md:mt-0 pb-12">
                         <div className="glass-panel p-8 rounded-3xl w-full max-w-2xl text-center shadow-2xl border-t-8 border-neon-pink">
                             <h2 className="text-4xl font-black mb-4 text-white">Translate to Emojis</h2>
-                            <p className="text-gray-400 mb-8 text-lg">Someone actually sent this in your group chat. Rewrite it using ONLY emojis!</p>
+                            <p className="text-gray-400 mb-8 text-lg">Rewrite this WhatsApp message using ONLY emojis!</p>
                             <div className="bg-dark-surface p-6 rounded-2xl border border-gray-700 mb-8"><p className="text-2xl md:text-3xl font-medium italic text-neon-yellow">"{targetPrompt}"</p></div>
                             <input type="text" value={encodeInput} onChange={e=>setEncodeInput(e.target.value)} placeholder="e.g., 🚗💨😱" className="w-full bg-dark-bg/50 border border-gray-600 rounded-xl p-6 text-4xl text-center text-white focus:border-neon-pink focus:outline-none mb-6 tracking-widest" maxLength="30"/>
-                            <button onClick={()=>getRoomRef(room.id).update({ [`gameData.encodeSubmissions.${user.uid}`]: encodeInput.trim() })} disabled={!encodeInput.trim()} className="w-full bg-neon-pink text-white font-bold py-4 rounded-xl disabled:opacity-50 text-xl hover:bg-pink-500 shadow-[0_0_20px_rgba(255,42,109,0.4)]">Submit Emojis</button>
+                            <button onClick={()=>getRoomRef(room.id).update({ [`gameData.encodeSubmissions.${user.uid}`]: encodeInput.trim() })} disabled={!encodeInput.trim()} className="w-full bg-neon-pink text-white font-bold py-4 rounded-xl disabled:opacity-50 text-xl hover:bg-pink-500">Submit Emojis</button>
                         </div>
                     </div>
                 );
@@ -1099,15 +1372,15 @@
 
             if (phase === 'DECODE') {
                 const emojisToDecode = room.gameData.encodeSubmissions?.[room.gameData.assignmentsDecode?.[user.uid]] || "🤷‍♂️";
-                if (room.gameData?.decodeSubmissions?.[user.uid]) return <div className="flex-1 flex items-center justify-center"><div className="glass-panel p-12 rounded-3xl"><h3 className="text-3xl font-bold mb-4">Guess Locked!</h3></div></div>;
+                if (room.gameData?.decodeSubmissions?.[user.uid]) return <div className="flex-1 flex items-center justify-center"><div className="glass-panel p-12 rounded-3xl"><h3 className="text-3xl font-bold mb-4">Guess Locked!</h3><WaitingFor players={room.players} completedIds={Object.keys(room.gameData?.decodeSubmissions || {})} /></div></div>;
                 return (
                     <div className="flex-1 flex flex-col items-center justify-center mt-16 md:mt-0 pb-12">
                         <div className="glass-panel p-8 rounded-3xl w-full max-w-2xl text-center shadow-2xl border-t-8 border-neon-cyan">
                             <h2 className="text-4xl font-black mb-4 text-white">Translate to Text</h2>
-                            <p className="text-gray-400 mb-8 text-lg">Someone translated a real chat message into these emojis. What did the original text say?</p>
+                            <p className="text-gray-400 mb-8 text-lg">What did the original text say?</p>
                             <div className="bg-dark-surface p-8 rounded-2xl border border-gray-700 mb-8 shadow-inner"><p className="text-6xl md:text-7xl filter drop-shadow-md">{emojisToDecode}</p></div>
                             <textarea value={decodeInput} onChange={e=>setDecodeInput(e.target.value)} placeholder="What do these emojis mean...?" className="w-full bg-dark-bg/50 border border-gray-600 rounded-xl p-4 text-white focus:border-neon-cyan focus:outline-none mb-6 h-28 resize-none text-xl text-center" maxLength="100"/>
-                            <button onClick={()=>getRoomRef(room.id).update({ [`gameData.decodeSubmissions.${user.uid}`]: decodeInput.trim() })} disabled={!decodeInput.trim()} className="w-full bg-neon-cyan text-black font-bold py-4 rounded-xl disabled:opacity-50 text-xl hover:bg-cyan-400 shadow-[0_0_20px_rgba(5,217,232,0.4)]">Submit Guess</button>
+                            <button onClick={()=>getRoomRef(room.id).update({ [`gameData.decodeSubmissions.${user.uid}`]: decodeInput.trim() })} disabled={!decodeInput.trim()} className="w-full bg-neon-cyan text-black font-bold py-4 rounded-xl disabled:opacity-50 text-xl hover:bg-cyan-400">Submit Guess</button>
                         </div>
                     </div>
                 );
@@ -1118,16 +1391,7 @@
                 const chainIdx = Math.floor(revealProgress / 3);
                 const step = revealProgress % 3;
 
-                if (chainIdx >= uids.length) {
-                    return (
-                        <div className="flex-1 flex flex-col items-center justify-center pb-12 mt-16 md:mt-0">
-                            <div className="glass-panel p-8 rounded-3xl w-full max-w-md text-center shadow-2xl">
-                                <h2 className="text-5xl font-black mb-8 text-transparent bg-clip-text bg-gradient-to-r from-neon-pink to-neon-yellow">That's All!</h2>
-                                {isHost && <button onClick={() => getRoomRef(room.id).update({ state: 'LOBBY', gameData: {} })} className="w-full bg-dark-surface hover:bg-gray-800 border-2 border-gray-600 hover:border-gray-400 text-white font-bold py-4 rounded-xl transition-colors text-lg">Back to Lobby</button>}
-                            </div>
-                        </div>
-                    );
-                }
+                if (chainIdx >= uids.length) return <ResultsScreen room={room} isHost={isHost} />;
 
                 const originalUid = uids[chainIdx];
                 const originalMessage = room.gameData.assignmentsEncode[originalUid];
@@ -1140,20 +1404,29 @@
                         <div className="glass-panel p-8 rounded-3xl w-full max-w-2xl text-center shadow-lg">
                             <h2 className="text-3xl font-black mb-6 text-neon-cyan border-b-2 border-gray-700 pb-3">Chain {chainIdx + 1} of {uids.length}</h2>
                             <div className="space-y-6 text-left">
-                                <div className="bg-dark-surface p-6 rounded-2xl border-l-4 border-gray-500 animate-fade-in relative">
-                                    <span className="absolute -top-3 left-4 bg-gray-500 text-black text-xs font-bold px-2 py-1 rounded">Original ({room.players[originalUid]?.name})</span>
-                                    <p className="text-2xl font-bold mt-2">"{originalMessage}"</p>
+                                <div className="bg-dark-surface p-6 rounded-2xl border-l-4 border-gray-500 animate-fade-in relative flex gap-4">
+                                    <PlayerAvatar player={room.players[originalUid]} size="12" />
+                                    <div>
+                                        <span className="text-gray-500 text-xs font-bold uppercase shadow-sm">Original ({room.players[originalUid]?.name})</span>
+                                        <p className="text-2xl font-bold mt-1 text-gray-200">"{originalMessage}"</p>
+                                    </div>
                                 </div>
                                 {step >= 1 && (
-                                    <div className="bg-yellow-900/20 p-6 rounded-2xl border-l-4 border-neon-yellow animate-fade-in relative text-center">
-                                        <span className="absolute -top-3 left-4 bg-neon-yellow text-black text-xs font-bold px-2 py-1 rounded">Emojis ({room.players[originalUid]?.name})</span>
-                                        <p className="text-5xl mt-2 tracking-widest">{emojis}</p>
+                                    <div className="bg-yellow-900/20 p-6 rounded-2xl border-l-4 border-neon-yellow animate-fade-in relative flex gap-4">
+                                        <PlayerAvatar player={room.players[originalUid]} size="12" />
+                                        <div>
+                                            <span className="text-neon-yellow text-xs font-bold uppercase shadow-sm">Translation ({room.players[originalUid]?.name})</span>
+                                            <p className="text-5xl mt-1 tracking-widest">{emojis}</p>
+                                        </div>
                                     </div>
                                 )}
                                 {step >= 2 && (
-                                    <div className="bg-cyan-900/20 p-6 rounded-2xl border-l-4 border-neon-cyan animate-fade-in relative">
-                                        <span className="absolute -top-3 left-4 bg-neon-cyan text-black text-xs font-bold px-2 py-1 rounded">Guess ({room.players[decoderUid]?.name})</span>
-                                        <p className="text-2xl font-bold mt-2 text-white">"{finalGuess}"</p>
+                                    <div className="bg-cyan-900/20 p-6 rounded-2xl border-l-4 border-neon-cyan animate-fade-in relative flex gap-4">
+                                        <PlayerAvatar player={room.players[decoderUid]} size="12" />
+                                        <div>
+                                            <span className="text-neon-cyan text-xs font-bold uppercase shadow-sm">Guess ({room.players[decoderUid]?.name})</span>
+                                            <p className="text-2xl font-bold mt-1 text-white">"{finalGuess}"</p>
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -1164,14 +1437,12 @@
             return null;
         };
 
-        // --- Mode 6: Chat Soundtrack ---
         const ChatSoundtrackGame = ({ room, user }) => {
             const isHost = room.host === user.uid;
             const phase = room.gameData?.phase || 'SUBMIT';
             const submitTime = room.gameData?.settings?.submitTime || 60;
             const guessTime = room.gameData?.settings?.guessTime || 60;
             const maciMode = room.gameData?.settings?.maciMode;
-            
             const [search, setSearch] = React.useState('');
             const [results, setResults] = React.useState([]);
             const [selectedSong, setSelectedSong] = React.useState(null);
@@ -1180,17 +1451,26 @@
                 if (!isHost) return;
                 const interval = setInterval(() => {
                     if (!room.gameData || room.gameData.transitioning) return;
-                    const timeUp = !maciMode && room.gameData.deadline > 0 && Date.now() >= room.gameData.deadline;
+                    const forceAdvance = room.gameData.forceAdvance;
+                    const timeUp = forceAdvance || (!maciMode && room.gameData.deadline > 0 && Date.now() >= room.gameData.deadline);
 
                     if (room.gameData.phase === 'SUBMIT') {
                         if (Object.keys(room.gameData.songs || {}).length === Object.keys(room.players).length || timeUp) {
-                            getRoomRef(room.id).update({ 'gameData.transitioning': true });
+                            getRoomRef(room.id).update({ 'gameData.transitioning': true, 'gameData.forceAdvance': false });
                             setTimeout(() => getRoomRef(room.id).update({ 'gameData.phase': 'VOTE', 'gameData.deadline': Date.now() + (guessTime * 1000), 'gameData.transitioning': false }), 1500);
                         }
                     } else if (room.gameData.phase === 'VOTE') {
                         if (Object.keys(room.gameData.votes || {}).length === Object.keys(room.players).length || timeUp) {
-                            getRoomRef(room.id).update({ 'gameData.transitioning': true });
-                            setTimeout(() => revealScores(), 1500);
+                            getRoomRef(room.id).update({ 'gameData.transitioning': true, 'gameData.forceAdvance': false });
+                            setTimeout(() => {
+                                let updates = { 'gameData.phase': 'RESULTS', 'gameData.deadline': Date.now() + 20000, 'gameData.transitioning': false };
+                                Object.keys(room.players).forEach(pId => {
+                                    let score = room.players[pId].score || 0;
+                                    Object.values(room.gameData.votes || {}).forEach(v => { if (v === pId) score += 100; });
+                                    updates[`players.${pId}.score`] = score;
+                                });
+                                getRoomRef(room.id).update(updates);
+                            }, 1500);
                         }
                     } else if (room.gameData.phase === 'RESULTS' && (!maciMode && timeUp)) {
                         getRoomRef(room.id).update({ 'gameData.transitioning': true });
@@ -1203,84 +1483,52 @@
             const searchItunes = async (query) => {
                 if (!query) return;
                 try {
-                    const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=5`);
-                    setResults((await res.json()).results);
+                    setResults((await(await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=5`)).json()).results);
                 } catch (e) { }
             };
 
-            const revealScores = async () => {
-                let updates = { 'gameData.phase': 'RESULTS', 'gameData.deadline': Date.now() + 20000, 'gameData.transitioning': false };
-                Object.keys(room.players).forEach(pId => {
-                    let score = room.players[pId].score || 0;
-                    Object.values(room.gameData.votes || {}).forEach(votedId => {
-                        if (votedId === pId) score += 100; // 100 pts per vote received
-                    });
-                    updates[`players.${pId}.score`] = score;
-                });
-                await getRoomRef(room.id).update(updates);
-            };
-
             if (phase === 'SUBMIT') {
-                const hasSubmitted = !!room.gameData?.songs?.[user.uid];
+                if (room.gameData?.songs?.[user.uid]) return <div className="flex-1 flex items-center justify-center"><div className="glass-panel p-12 rounded-3xl"><h3 className="text-3xl font-bold mb-4">Song Locked! 🔒</h3><WaitingFor players={room.players} completedIds={Object.keys(room.gameData?.songs || {})} /></div></div>;
                 return (
                     <div className="flex-1 flex flex-col items-center mt-16 md:mt-0 pb-12">
                         <div className="glass-panel p-8 rounded-3xl w-full max-w-2xl text-center shadow-xl">
                             <h2 className="text-4xl font-bold mb-3 text-neon-pink">Chat Soundtrack</h2>
-                            <p className="text-gray-400 mb-6 text-lg">Find the perfect song for this message:</p>
-                            
-                            <div className="bg-dark-surface p-6 rounded-2xl border-l-4 border-neon-yellow mb-8">
-                                <span className="text-xs font-bold text-gray-500 uppercase">{room.gameData.promptMessage?.sender}</span>
-                                <p className="text-2xl font-bold mt-2 text-white">"{room.gameData.promptMessage?.text}"</p>
-                            </div>
-
-                            {!hasSubmitted ? (
-                                <>
-                                    <div className="flex gap-2 mb-6 bg-dark-bg p-2 rounded-2xl border border-gray-700"><input type="text" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==='Enter'&&searchItunes(search)} placeholder="Search..." className="flex-1 bg-transparent p-3 text-white focus:outline-none"/><button onClick={()=>searchItunes(search)} className="bg-neon-cyan text-black px-6 rounded-xl font-bold">Search</button></div>
-                                    <div className="space-y-3 mb-8 text-left max-h-72 overflow-y-auto hide-scrollbar">
-                                        {results.map(t => (
-                                            <div key={t.trackId} onClick={()=>setSelectedSong(t)} className={`flex items-center gap-4 p-4 rounded-2xl cursor-pointer border-2 ${selectedSong?.trackId===t.trackId?'border-neon-cyan bg-cyan-900/30':'border-transparent bg-dark-surface'}`}>
-                                                <img src={t.artworkUrl100} className="w-14 h-14 rounded-xl" />
-                                                <div><p className="font-bold">{t.trackName}</p><p className="text-sm text-gray-400">{t.artistName}</p></div>
-                                            </div>
-                                        ))}
+                            <div className="bg-dark-surface p-6 rounded-2xl border-l-4 border-neon-yellow mb-8"><span className="text-xs font-bold text-gray-500 uppercase">{room.gameData.promptMessage?.sender}</span><p className="text-2xl font-bold mt-2 text-white">"{room.gameData.promptMessage?.text}"</p></div>
+                            <div className="flex gap-2 mb-6 bg-dark-bg p-2 rounded-2xl border border-gray-700"><input type="text" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==='Enter'&&searchItunes(search)} placeholder="Search..." className="flex-1 bg-transparent p-3 text-white focus:outline-none"/><button onClick={()=>searchItunes(search)} className="bg-neon-cyan text-black px-6 rounded-xl font-bold">Search</button></div>
+                            <div className="space-y-3 mb-8 text-left max-h-72 overflow-y-auto hide-scrollbar">
+                                {results.map(t => (
+                                    <div key={t.trackId} onClick={()=>setSelectedSong(t)} className={`flex items-center gap-4 p-4 rounded-2xl cursor-pointer border-2 ${selectedSong?.trackId===t.trackId?'border-neon-cyan bg-cyan-900/30':'border-transparent bg-dark-surface'}`}>
+                                        <img src={t.artworkUrl100} className="w-14 h-14 rounded-xl" />
+                                        <div><p className="font-bold">{t.trackName}</p><p className="text-sm text-gray-400">{t.artistName}</p></div>
                                     </div>
-                                    <button onClick={()=>getRoomRef(room.id).update({ [`gameData.songs.${user.uid}`]: { id: selectedSong.trackId, title: selectedSong.trackName, artist: selectedSong.artistName, cover: selectedSong.artworkUrl100, preview: selectedSong.previewUrl } })} disabled={!selectedSong} className="w-full bg-neon-pink text-white font-bold py-4 rounded-xl disabled:opacity-50 text-xl">Lock In Song</button>
-                                </>
-                            ) : (<div className="py-16"><h3 className="text-3xl font-bold mb-4">Song Locked! 🔒</h3></div>)}
+                                ))}
+                            </div>
+                            <button onClick={()=>getRoomRef(room.id).update({ [`gameData.songs.${user.uid}`]: { id: selectedSong.trackId, title: selectedSong.trackName, artist: selectedSong.artistName, cover: selectedSong.artworkUrl100, preview: selectedSong.previewUrl } })} disabled={!selectedSong} className="w-full bg-neon-pink text-white font-bold py-4 rounded-xl disabled:opacity-50 text-xl">Lock In Song</button>
                         </div>
                     </div>
                 );
             }
 
             if (phase === 'VOTE') {
-                const songs = Object.entries(room.gameData.songs || {}).map(([uid, s]) => ({...s, uid}));
-                // Deterministic shuffle
-                songs.sort((a,b) => a.id - b.id);
-                const hasVoted = !!room.gameData?.votes?.[user.uid];
-
+                const songs = Object.entries(room.gameData.songs || {}).map(([uid, s]) => ({...s, uid})).sort((a,b) => a.id - b.id);
+                if (room.gameData?.votes?.[user.uid]) return <div className="flex-1 flex items-center justify-center pb-20"><div className="glass-panel p-12 rounded-3xl"><h3 className="text-3xl font-bold mb-4">Vote Locked!</h3><WaitingFor players={room.players} completedIds={Object.keys(room.gameData?.votes || {})} /></div></div>;
                 return (
                     <div className="flex-1 flex flex-col h-full mt-16 md:mt-0">
-                        <div className="text-center mb-6">
-                            <h2 className="text-3xl font-black text-neon-yellow mb-2">Vote for the best Soundtrack!</h2>
-                            <div className="bg-dark-surface p-4 rounded-xl inline-block border border-gray-700"><p className="text-lg font-bold italic">"{room.gameData.promptMessage?.text}"</p></div>
-                        </div>
-
-                        {!hasVoted ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 flex-1 overflow-y-auto hide-scrollbar pb-10 px-2">
-                                {songs.map(song => (
-                                    <div key={song.uid} className="glass-panel p-5 rounded-2xl flex items-center gap-5 border border-gray-700/50">
-                                        <div className="relative group shrink-0">
-                                            <img src={song.cover} className="w-20 h-20 rounded-xl shadow-lg" />
-                                            {song.preview && (<button className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 rounded-xl" onClick={() => { const a = new Audio(song.preview); a.volume=0.5; a.play(); }}><Icon name="Play" className="text-white" size={32}/></button>)}
-                                        </div>
-                                        <div className="flex-1 min-w-0 flex flex-col justify-between h-full">
-                                            <div><p className="font-bold truncate text-lg mb-1">{song.title}</p><p className="text-sm text-gray-400 truncate mb-4">{song.artist}</p></div>
-                                            <button onClick={()=>getRoomRef(room.id).update({[`gameData.votes.${user.uid}`]: song.uid})} className="bg-neon-cyan/20 text-neon-cyan py-2 rounded-lg font-bold hover:bg-neon-cyan hover:text-black transition-colors w-full">Vote</button>
-                                        </div>
+                        <div className="text-center mb-6"><h2 className="text-3xl font-black text-neon-yellow mb-2">Vote for the best Soundtrack!</h2><div className="bg-dark-surface p-4 rounded-xl inline-block border border-gray-700"><p className="text-lg font-bold italic">"{room.gameData.promptMessage?.text}"</p></div></div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 flex-1 overflow-y-auto hide-scrollbar pb-10 px-2">
+                            {songs.map(song => (
+                                <div key={song.uid} className={`glass-panel p-5 rounded-2xl flex items-center gap-5 border-2 transition-all ${song.uid === user.uid ? 'opacity-50 border-gray-700/50 pointer-events-none' : 'border-gray-700 hover:border-neon-cyan'}`}>
+                                    <div className="relative group shrink-0">
+                                        <img src={song.cover} className="w-20 h-20 rounded-xl shadow-lg" />
+                                        {song.preview && (<button className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 rounded-xl transition-opacity" onClick={() => { const a = new Audio(song.preview); a.volume=0.5; a.play(); }}><Icon name="Play" className="text-white" size={32}/></button>)}
                                     </div>
-                                ))}
-                            </div>
-                        ) : (<div className="flex-1 flex items-center justify-center pb-20"><div className="glass-panel p-12 rounded-3xl"><h3 className="text-3xl font-bold mb-4">Vote Locked!</h3></div></div>)}
+                                    <div className="flex-1 min-w-0 flex flex-col justify-between h-full">
+                                        <div><p className="font-bold truncate text-lg mb-1">{song.title}</p><p className="text-sm text-gray-400 truncate mb-4">{song.artist}</p></div>
+                                        <button onClick={()=>getRoomRef(room.id).update({[`gameData.votes.${user.uid}`]: song.uid})} className="bg-neon-cyan/20 text-neon-cyan py-2 rounded-lg font-bold hover:bg-neon-cyan hover:text-black transition-colors w-full">Vote</button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 );
             }
@@ -1293,9 +1541,9 @@
 
                 return (
                     <div className="flex-1 flex flex-col items-center pt-16 pb-12 overflow-y-auto hide-scrollbar">
-                        <div className="w-full max-w-2xl glass-panel p-8 rounded-3xl">
+                        <div className="w-full max-w-2xl glass-panel p-8 rounded-3xl animate-dramatic">
                             <h2 className="text-4xl font-black mb-6 text-center text-neon-cyan">Best Soundtrack</h2>
-                            <div className="bg-dark-surface p-4 rounded-xl mb-8 border border-gray-700 text-center"><p className="text-xl font-bold italic">"{room.gameData.promptMessage?.text}"</p></div>
+                            <div className="bg-dark-surface p-4 rounded-xl mb-8 border border-gray-700 text-center shadow-inner"><p className="text-xl font-bold italic">"{room.gameData.promptMessage?.text}"</p></div>
                             <div className="space-y-4">
                                 {songs.map(([uid, song], idx) => (
                                     <div key={uid} className={`flex items-center gap-4 p-4 rounded-2xl border-2 ${idx === 0 ? 'border-neon-yellow bg-yellow-900/20 shadow-[0_0_15px_rgba(255,195,0,0.3)]' : 'border-gray-700 bg-dark-surface'}`}>
@@ -1303,7 +1551,7 @@
                                         <img src={song.cover} className="w-16 h-16 rounded-xl" />
                                         <div className="flex-1 overflow-hidden">
                                             <p className="font-bold text-lg text-white truncate">{song.title}</p>
-                                            <p className="text-sm text-neon-pink font-bold">Submitted by: {room.players[uid]?.name}</p>
+                                            <p className="text-sm text-neon-pink font-bold flex items-center gap-2">Submitted by: <PlayerAvatar player={room.players[uid]} size="5" /> {room.players[uid]?.name}</p>
                                         </div>
                                         <div className="text-2xl font-black text-neon-cyan">{votesCount[uid]||0} <span className="text-sm font-normal text-gray-400">votes</span></div>
                                     </div>
@@ -1314,6 +1562,139 @@
                     </div>
                 );
             }
+            return null;
+        };
+
+        const GoogleItGame = ({ room, user }) => {
+            const isHost = room.host === user.uid;
+            const phase = room.gameData?.phase || 'PROMPT';
+            const googlerId = room.gameData?.googler;
+            const submitTime = room.gameData?.settings?.submitTime || 60;
+            const maciMode = room.gameData?.settings?.maciMode;
+            
+            const [promptInput, setPromptInput] = React.useState('');
+            const [answerInput, setAnswerInput] = React.useState('');
+
+            React.useEffect(() => {
+                if (!isHost) return;
+                const interval = setInterval(() => {
+                    if (!room.gameData || room.gameData.transitioning) return;
+                    const forceAdvance = room.gameData.forceAdvance;
+                    const timeUp = forceAdvance || (!maciMode && room.gameData.deadline > 0 && Date.now() >= room.gameData.deadline);
+
+                    if (room.gameData.phase === 'PROMPT') {
+                        if (room.gameData.prompt || timeUp) {
+                            getRoomRef(room.id).update({ 'gameData.transitioning': true, 'gameData.forceAdvance': false });
+                            if (!room.gameData.prompt) getRoomRef(room.id).update({ 'gameData.prompt': 'Why is my friend group so weird?' });
+                            setTimeout(() => getRoomRef(room.id).update({ 'gameData.phase': 'ANSWER', 'gameData.deadline': Date.now() + (submitTime * 1000), 'gameData.transitioning': false }), 1000);
+                        }
+                    } else if (room.gameData.phase === 'ANSWER') {
+                        if (Object.keys(room.gameData.answers || {}).length === Object.keys(room.players).length || timeUp) {
+                            getRoomRef(room.id).update({ 'gameData.transitioning': true, 'gameData.forceAdvance': false });
+                            setTimeout(() => getRoomRef(room.id).update({ 'gameData.phase': 'VOTE', 'gameData.deadline': Date.now() + ((room.gameData.settings?.guessTime || 60) * 1000), 'gameData.transitioning': false }), 1000);
+                        }
+                    } else if (room.gameData.phase === 'VOTE') {
+                        if (Object.keys(room.gameData.votes || {}).length === Object.keys(room.players).length || timeUp) {
+                            getRoomRef(room.id).update({ 'gameData.transitioning': true, 'gameData.forceAdvance': false });
+                            setTimeout(() => {
+                                let updates = { 'gameData.phase': 'REVEAL', 'gameData.currentSlide': 0, 'gameData.transitioning': false };
+                                Object.keys(room.players).forEach(pId => {
+                                    let score = room.players[pId].score || 0;
+                                    Object.values(room.gameData.votes || {}).forEach(v => { if (v === pId) score += 100; });
+                                    updates[`players.${pId}.score`] = score;
+                                });
+                                getRoomRef(room.id).update(updates);
+                            }, 1000);
+                        }
+                    }
+                }, 1000);
+                return () => clearInterval(interval);
+            }, [room, isHost, submitTime, maciMode]);
+
+            if (phase === 'PROMPT') {
+                if (user.uid === googlerId) {
+                    return (
+                        <div className="flex-1 flex items-center justify-center">
+                            <div className="glass-panel p-10 rounded-3xl w-full max-w-2xl text-center shadow-2xl border-t-8 border-neon-cyan animate-fade-in">
+                                <Icon name="Search" size={48} className="text-neon-cyan mx-auto mb-4" />
+                                <h2 className="text-4xl font-black mb-2 text-white">Google Something!</h2>
+                                <p className="text-gray-400 mb-8 text-lg">Type a ridiculous search query. Everyone else will answer it.</p>
+                                <input type="text" value={promptInput} onChange={e=>setPromptInput(e.target.value)} placeholder="e.g. Why do my toes smell like..." className="w-full bg-dark-bg/50 border-2 border-gray-600 rounded-xl p-6 text-2xl text-white focus:border-neon-cyan focus:outline-none mb-6 text-center" maxLength="80"/>
+                                <button onClick={() => getRoomRef(room.id).update({ 'gameData.prompt': promptInput.trim() || "Why is my friend group so weird?" })} className="w-full bg-neon-cyan text-black font-bold py-4 rounded-xl hover:bg-cyan-400 text-xl shadow-[0_0_20px_rgba(5,217,232,0.4)] transition-transform active:scale-95">Search</button>
+                            </div>
+                        </div>
+                    );
+                } else {
+                    return (<div className="flex-1 flex items-center justify-center"><div className="text-center glass-panel p-12 rounded-3xl animate-pulse"><Icon name="Search" size={48} className="text-neon-pink mx-auto mb-4 animate-bounce-slow" /><h3 className="text-3xl font-bold mb-2">Waiting for {room.players[googlerId]?.name}...</h3></div></div>);
+                }
+            }
+
+            if (phase === 'ANSWER') {
+                if (room.gameData?.answers?.[user.uid]) return <div className="flex-1 flex items-center justify-center"><div className="glass-panel p-12 rounded-3xl"><h3 className="text-3xl font-bold mb-4">Answer Locked!</h3><WaitingFor players={room.players} completedIds={Object.keys(room.gameData?.answers || {})} /></div></div>;
+                return (
+                    <div className="flex-1 flex items-center justify-center pb-12 mt-16 md:mt-0">
+                        <div className="glass-panel p-8 md:p-12 rounded-3xl w-full max-w-3xl text-center shadow-2xl border-t-8 border-neon-pink animate-fade-in">
+                            <h2 className="text-xl text-neon-pink font-bold uppercase tracking-widest mb-4">The Google Search:</h2>
+                            <p className="text-4xl md:text-5xl font-black text-white italic mb-10 leading-tight">"{room.gameData.prompt}"</p>
+                            <textarea value={answerInput} onChange={e=>setAnswerInput(e.target.value)} placeholder="Type your best answer..." className="w-full bg-dark-bg/50 border border-gray-600 rounded-xl p-4 text-white focus:border-neon-pink focus:outline-none mb-6 h-32 resize-none text-xl text-center" maxLength="100"/>
+                            <button onClick={() => getRoomRef(room.id).update({ [`gameData.answers.${user.uid}`]: answerInput.trim() || 'Nothing' })} disabled={!answerInput.trim()} className="w-full bg-neon-pink text-white font-bold py-4 rounded-xl disabled:opacity-50 text-xl hover:bg-pink-500 shadow-[0_0_20px_rgba(255,42,109,0.4)]">Submit Answer</button>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (phase === 'VOTE') {
+                const answers = Object.entries(room.gameData.answers || {}).sort((a,b) => a[0].localeCompare(b[0]));
+                if (room.gameData?.votes?.[user.uid]) return <div className="flex-1 flex items-center justify-center"><div className="glass-panel p-12 rounded-3xl"><h3 className="text-3xl font-bold mb-4">Vote Locked!</h3><WaitingFor players={room.players} completedIds={Object.keys(room.gameData?.votes || {})} /></div></div>;
+                return (
+                    <div className="flex-1 flex flex-col h-full mt-16 md:mt-0">
+                        <div className="text-center mb-8 shrink-0 animate-fade-in"><h2 className="text-xl text-neon-yellow font-bold uppercase tracking-widest mb-2">Vote for the best answer to:</h2><p className="text-3xl font-black text-white italic">"{room.gameData.prompt}"</p></div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1 overflow-y-auto hide-scrollbar px-2 pb-10">
+                            {answers.map(([ansUid, text]) => (
+                                <button key={ansUid} onClick={() => getRoomRef(room.id).update({ [`gameData.votes.${user.uid}`]: ansUid })} disabled={ansUid === user.uid} className={`glass-panel p-6 rounded-2xl text-left text-xl font-bold transition-transform active:scale-95 shadow-md ${ansUid === user.uid ? 'opacity-50 cursor-not-allowed border border-gray-700' : 'hover:border-neon-yellow hover:bg-yellow-900/20 border-2 border-transparent'}`}>"{text}"</button>
+                            ))}
+                        </div>
+                    </div>
+                );
+            }
+
+            if (phase === 'REVEAL') {
+                const answersArr = Object.entries(room.gameData.answers || {});
+                if (answersArr.length === 0) return <div className="flex-1 flex items-center justify-center"><h2 className="text-3xl font-bold text-gray-400">No one answered!</h2>{isHost && <button onClick={() => getRoomRef(room.id).update({ 'gameData.phase': 'RESULTS' })} className="mt-6 bg-neon-cyan px-6 py-2 rounded text-black font-bold">Skip</button>}</div>;
+
+                const votesCount = {};
+                Object.values(room.gameData.votes || {}).forEach(v => { votesCount[v] = (votesCount[v]||0) + 1; });
+                answersArr.sort((a,b) => (votesCount[a[0]]||0) - (votesCount[b[0]]||0));
+
+                const currentSlideIndex = room.gameData.currentSlide || 0;
+                const currentAnswer = answersArr[currentSlideIndex];
+                const isWinner = currentSlideIndex === answersArr.length - 1;
+
+                return (
+                    <div className="flex-1 flex flex-col items-center justify-center pb-12 mt-16 md:mt-0 relative">
+                        {isWinner && <div className="absolute inset-0 bg-neon-yellow/10 animate-pulse rounded-[3rem] filter blur-3xl pointer-events-none"></div>}
+                        <div key={currentSlideIndex} className={`w-full max-w-4xl text-center z-10 animate-[dramaticPop_0.8s_cubic-bezier(0.175,0.885,0.32,1.275)_forwards]`}>
+                            <p className="text-2xl font-bold text-gray-400 mb-2 uppercase tracking-widest">{isWinner ? 'WINNING ANSWER' : 'Answer'}</p>
+                            <div className={`p-10 md:p-16 rounded-[3rem] shadow-2xl mb-8 border-4 ${isWinner ? 'bg-yellow-900/30 border-neon-yellow shadow-[0_0_50px_rgba(255,195,0,0.5)]' : 'bg-dark-surface border-gray-600'}`}>
+                                <p className={`font-black italic leading-tight ${isWinner ? 'text-5xl md:text-7xl text-neon-yellow' : 'text-4xl md:text-5xl text-white'}`}>"{currentAnswer[1]}"</p>
+                            </div>
+                            <div className="flex flex-col md:flex-row justify-center items-center gap-4 md:gap-12">
+                                <p className="text-3xl font-bold text-gray-300 flex items-center gap-3">By: <PlayerAvatar player={room.players[currentAnswer[0]]} size="12" /> <span className={isWinner ? 'text-neon-yellow' : 'text-white'}>{room.players[currentAnswer[0]]?.name}</span></p>
+                                <p className="text-3xl font-black text-neon-cyan bg-cyan-900/30 px-6 py-2 rounded-full border border-neon-cyan">{votesCount[currentAnswer[0]] || 0} Votes</p>
+                            </div>
+                        </div>
+                        {isHost && (
+                            <div className="fixed bottom-6 left-0 w-full flex justify-center px-4 z-50">
+                                <button onClick={() => isWinner ? getRoomRef(room.id).update({ 'gameData.phase': 'RESULTS' }) : getRoomRef(room.id).update({ 'gameData.currentSlide': currentSlideIndex + 1 })} className={`w-full max-w-md text-black font-black py-5 rounded-2xl text-2xl shadow-[0_10px_40px_rgba(5,217,232,0.3)] transition-transform active:scale-95 ${isWinner ? 'bg-neon-pink' : 'bg-neon-cyan'}`}>
+                                    {isWinner ? 'Show Standings' : 'Next Answer'}
+                                </button>
+                            </div>
+                        )}
+                        {!isHost && <p className="fixed bottom-10 text-gray-500 font-bold tracking-widest text-sm uppercase animate-pulse">Waiting for host...</p>}
+                    </div>
+                );
+            }
+            if (phase === 'RESULTS') return <ResultsScreen room={room} isHost={isHost} />;
             return null;
         };
 
